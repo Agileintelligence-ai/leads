@@ -390,7 +390,7 @@
     const mapsKey = document.getElementById('mapsKey').value.trim();
     if (!mapsKey.startsWith('AIza')) return '';
 
-    const panelCount = l.capacity ? Math.round(parseFloat(l.capacity) / 0.4) : 25;
+    const panelCount = Math.min(Math.round(parseCapacity(l.capacity) / 0.4), 50);
     const systemSize = l.capacity || '~50kW';
     const annualSavings = '$' + ((l.savings||0)/1000).toFixed(0) + 'k';
 
@@ -443,7 +443,7 @@
 
       // Step 2: Google Solar API for real roof segment data
       let roofSegments = null;
-      let panelCount = l.capacity ? Math.round(parseFloat(l.capacity) / 0.4) : 25;
+      let panelCount = Math.min(Math.round(parseCapacity(l.capacity) / 0.4), 50);
       let usedSolarApi = false;
 
       if (lat && lng) {
@@ -524,14 +524,21 @@
     if (span) span.textContent = msg;
   }
 
+  function parseCapacity(cap) {
+    if (!cap) return 30;
+    // Handle ranges like "99-150 kW" — take the lower value
+    const match = String(cap).match(/(\d+)/);
+    return match ? parseInt(match[1]) : 30;
+  }
+
   function drawPanelsOnSegments(canvas, segments, totalPanels, centerLat, centerLng) {
     const ctx = canvas.getContext('2d');
     const W = canvas.width, H = canvas.height;
-    const metersPerPx = 0.149; // zoom 19, ~lat -33
+    const metersPerPx = 0.149;
     const sorted = [...segments].sort((a,b) => (b.stats?.areaMeters2||0) - (a.stats?.areaMeters2||0));
     const pW = 9, pH = 15, gX = 2, gY = 2;
     let drawnTotal = 0;
-    const maxShow = Math.min(totalPanels, 60);
+    const maxShow = Math.min(totalPanels, 50);
     for (const seg of sorted.slice(0, 3)) {
       if (drawnTotal >= maxShow) break;
       const segLat = seg.center?.latitude || centerLat;
@@ -540,10 +547,10 @@
       const dyM = (segLat - centerLat) * 110540;
       const px = Math.round(W/2 + dxM/metersPerPx);
       const py = Math.round(H/2 - dyM/metersPerPx);
-      const areaSqm = seg.stats?.areaMeters2 || 100;
-      const panelsHere = Math.min(Math.floor(areaSqm/2.2), maxShow - drawnTotal, 30);
+      const areaSqm = seg.stats?.areaMeters2 || 80;
+      const panelsHere = Math.min(Math.floor(areaSqm/2.5), maxShow - drawnTotal, 25);
       if (panelsHere <= 0) continue;
-      const cols = Math.max(1, Math.round(Math.sqrt(panelsHere * 1.6)));
+      const cols = Math.max(1, Math.round(Math.sqrt(panelsHere * 1.5)));
       const rows = Math.ceil(panelsHere / cols);
       const arrW = cols*(pW+gX)-gX, arrH = rows*(pH+gY)-gY;
       const sx = Math.max(8, Math.min(W-arrW-8, px-arrW/2));
@@ -557,7 +564,7 @@
       }
       drawnTotal += drawn;
     }
-    ctx.fillStyle='rgba(0,0,0,0.72)'; ctx.fillRect(8,H-22,155,16);
+    ctx.fillStyle='rgba(0,0,0,0.72)'; ctx.fillRect(8,H-22,175,16);
     ctx.fillStyle='#f5a623'; ctx.font='bold 9px sans-serif';
     ctx.fillText(`☀ ${drawnTotal} panels across ${Math.min(sorted.length,3)} roof sections`, 12, H-10);
   }
@@ -566,7 +573,7 @@
     const ctx = canvas.getContext('2d');
     const W = canvas.width, H = canvas.height;
     const pW=9, pH=15, gX=2, gY=2;
-    const show = Math.min(panelCount, 60);
+    const show = Math.min(panelCount, 50);
     const cols = Math.max(1, Math.round(Math.sqrt(show*1.5)));
     const rows = Math.ceil(show/cols);
     const arrW=cols*(pW+gX)-gX, arrH=rows*(pH+gY)-gY;
