@@ -1,0 +1,12 @@
+{
+  "name": "agile-solar-qualifier",
+  "version": "1.0.0",
+  "description": "Agile Energy Solar Lead Qualifier",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

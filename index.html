@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agile Energy — Solar Lead Qualifier</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0d12; --surface: #111520; --surface2: #161c2a; --border: #1f2a3e;
+    --accent: #f5a623; --accent2: #3ecf8e; --purple: #a78bfa; --red: #f87171;
+    --text: #e8eaf0; --muted: #64748b;
+  }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  .header { background: linear-gradient(135deg, #0a0d12 0%, #111a2e 50%, #0a0d12 100%); border-bottom: 1px solid var(--border); padding: 18px 28px; display: flex; align-items: center; justify-content: space-between; }
+  .header-left { display: flex; align-items: center; gap: 14px; }
+  .logo { width: 42px; height: 42px; background: linear-gradient(135deg, var(--accent), #f97316); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+  .header-title { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
+  .header-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .header-tag { font-size: 11px; padding: 4px 10px; background: rgba(245,166,35,0.1); border: 1px solid rgba(245,166,35,0.3); border-radius: 20px; color: var(--accent); font-family: 'DM Mono', monospace; }
+
+  .main { padding: 20px 28px; max-width: 1400px; margin: 0 auto; }
+
+  /* Keys panel - collapsible */
+  .keys-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+  .keys-toggle { padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+  .keys-toggle:hover { background: rgba(255,255,255,0.02); }
+  .keys-toggle-title { font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+  .keys-toggle-status { font-size: 11px; font-family: 'DM Mono', monospace; }
+  .keys-toggle-status.all-set { color: var(--accent2); }
+  .keys-toggle-status.missing { color: var(--red); }
+  .keys-body { padding: 0 20px 16px; border-top: 1px solid var(--border); display: none; }
+  .keys-body.open { display: block; }
+  .keys-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+  .key-row { display: flex; flex-direction: column; gap: 5px; }
+  .key-row label { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: 0.5px; }
+  .key-row input { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; color: var(--text); font-family: 'DM Mono', monospace; font-size: 12px; outline: none; transition: border-color 0.2s; width: 100%; }
+  .key-row input:focus { border-color: var(--accent); }
+  .keys-actions { display: flex; gap: 10px; margin-top: 12px; align-items: center; }
+  .save-btn { background: rgba(245,166,35,0.1); border: 1px solid rgba(245,166,35,0.3); border-radius: 8px; padding: 8px 16px; color: var(--accent); font-size: 12px; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+  .save-btn:hover { background: rgba(245,166,35,0.2); }
+  .key-hint { font-size: 11px; color: var(--muted); }
+
+  .controls { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; margin-bottom: 18px; }
+  .controls-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  @media(max-width:768px){ .controls-grid { grid-template-columns: 1fr; } .stats-bar { grid-template-columns: repeat(3,1fr) !important; } .keys-grid { grid-template-columns: 1fr; } }
+  .ctrl-group label { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 6px; }
+  select, input[type="text"] { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; appearance: none; transition: border-color 0.2s; cursor: pointer; }
+  select:focus, input[type="text"]:focus { border-color: var(--accent); }
+
+  .tier-tabs { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .tier-btn { flex: 1; min-width: 120px; padding: 10px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s; text-align: center; }
+  .tier-btn.active-t1 { background: rgba(245,166,35,0.12); border-color: var(--accent); color: var(--accent); }
+  .tier-btn.active-t2 { background: rgba(62,207,142,0.12); border-color: var(--accent2); color: var(--accent2); }
+  .tier-btn.active-t3 { background: rgba(167,139,250,0.12); border-color: var(--purple); color: var(--purple); }
+  .tier-btn.active-t4 { background: rgba(251,191,36,0.12); border-color: #fbbf24; color: #fbbf24; }
+
+  .run-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, var(--accent), #f97316); border: none; border-radius: 10px; color: #000; font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 800; cursor: pointer; transition: all 0.2s; }
+  .run-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 28px rgba(245,166,35,0.35); }
+  .run-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+  .stop-btn { width: 100%; padding: 12px; background: transparent; border: 1px solid var(--red); border-radius: 10px; color: var(--red); font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 800; cursor: pointer; margin-top: 8px; }
+
+  .stats-bar { display: grid; grid-template-columns: repeat(6,1fr); gap: 10px; margin-bottom: 18px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 10px; text-align: center; }
+  .stat-num { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; }
+  .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+  .c-hot{color:var(--accent);} .c-warm{color:var(--accent2);} .c-purple{color:var(--purple);} .c-green{color:#22c55e;}
+
+  .progress-wrap { margin-bottom: 14px; display: none; }
+  .progress-label { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; margin-bottom: 5px; }
+  .progress-bar { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; height: 6px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #f97316); border-radius: 8px; transition: width 0.4s ease; }
+  .status-msg { font-size: 12px; color: var(--muted); margin-bottom: 14px; font-family: 'DM Mono', monospace; min-height: 18px; }
+  .error-msg { color: var(--red); font-size: 12px; margin-top: 8px; font-family: 'DM Mono', monospace; }
+
+  .section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .section-title { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 800; }
+  .export-row { display: flex; gap: 10px; margin-bottom: 16px; align-items: center; flex-wrap: wrap; }
+  .export-btn { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 9px 18px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+  .export-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+  .export-btn.xlsx:hover { border-color: #22c55e; color: #22c55e; }
+  .export-note { font-size: 11px; color: var(--muted); }
+
+  .leads-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(340px,1fr)); gap: 14px; }
+  .lead-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; animation: fadeUp 0.4s ease; }
+  .lead-card.hot { border-color: rgba(245,166,35,0.45); background: linear-gradient(135deg,var(--surface),rgba(245,166,35,0.04)); }
+  .lead-card.warm { border-color: rgba(62,207,142,0.35); background: linear-gradient(135deg,var(--surface),rgba(62,207,142,0.04)); }
+  .lead-card.diesel { border-color: rgba(167,139,250,0.4); background: linear-gradient(135deg,var(--surface),rgba(167,139,250,0.04)); }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);} }
+
+  .lead-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; gap: 10px; }
+  .lead-name { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 800; line-height: 1.3; }
+  .lead-addr { font-size: 11px; color: var(--accent2); margin-top: 3px; }
+  .lead-website { font-size: 11px; margin-top: 4px; }
+  .lead-website a { color: var(--accent); text-decoration: none; }
+  .lead-website a:hover { text-decoration: underline; }
+  .lead-website.no-site { color: var(--muted); }
+  .lead-rating { font-size: 10px; color: var(--muted); margin-top: 4px; font-family: 'DM Mono', monospace; }
+
+  .badges { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; flex-shrink: 0; }
+  .badge { font-family: 'DM Mono', monospace; font-size: 10px; padding: 3px 7px; border-radius: 20px; white-space: nowrap; }
+  .b-hot{background:rgba(245,166,35,0.2);color:var(--accent);border:1px solid rgba(245,166,35,0.35);}
+  .b-warm{background:rgba(62,207,142,0.15);color:var(--accent2);border:1px solid rgba(62,207,142,0.3);}
+  .b-cold{background:rgba(100,116,139,0.12);color:var(--muted);border:1px solid rgba(100,116,139,0.2);}
+  .b-solar{background:rgba(248,113,113,0.1);color:var(--red);border:1px solid rgba(248,113,113,0.2);}
+  .b-maps{background:rgba(62,207,142,0.08);color:var(--accent2);border:1px solid rgba(62,207,142,0.2);}
+  .b-nosolar{background:rgba(62,207,142,0.08);color:var(--accent2);border:1px solid rgba(62,207,142,0.2);}
+  .b-hassolar{background:rgba(248,113,113,0.08);color:var(--red);border:1px solid rgba(248,113,113,0.2);}
+
+  .lead-body { font-size: 12px; color: #94a3b8; line-height: 1.6; margin: 8px 0; }
+  .lead-metrics { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 8px; }
+  .metric { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; font-size: 11px; font-family: 'DM Mono', monospace; }
+  .metric span { color: var(--muted); }
+  .lead-action { margin-top: 8px; padding: 7px 10px; background: rgba(245,166,35,0.07); border-radius: 6px; font-size: 11px; color: var(--accent); border-left: 2px solid var(--accent); }
+
+  .pulse { display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px;font-family:'DM Mono',monospace;padding:8px 0; }
+  .dot { width:6px;height:6px;border-radius:50%;background:var(--accent);animation:p 1.2s infinite; }
+  .dot:nth-child(2){animation-delay:.2s;} .dot:nth-child(3){animation-delay:.4s;}
+  @keyframes p{0%,100%{opacity:.25;}50%{opacity:1;}}
+
+  .empty-state { text-align:center;padding:60px 20px;color:var(--muted); }
+  .empty-state .icon { font-size:48px;margin-bottom:12px; }
+  .empty-state h3 { font-family:'Syne',sans-serif;font-size:18px;color:var(--text);margin-bottom:8px; }
+  .empty-state p { font-size:13px;line-height:1.7;max-width:400px;margin:0 auto; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="logo">⚡</div>
+    <div>
+      <div class="header-title">Solar Lead Qualifier</div>
+      <div class="header-sub">Real businesses from Google Maps, qualified by AI</div>
+    </div>
+  </div>
+  <div class="header-tag">Agile Energy Internal Tool</div>
+</div>
+
+<div class="main">
+
+  <!-- Collapsible API Keys -->
+  <div class="keys-panel">
+    <div class="keys-toggle" onclick="toggleKeys()">
+      <div class="keys-toggle-title">🔑 API Keys <span style="font-size:11px;color:var(--muted);font-weight:400">(click to expand)</span></div>
+      <div class="keys-toggle-status missing" id="keysStatus">⚠ Keys not set</div>
+    </div>
+    <div class="keys-body" id="keysBody">
+      <div class="keys-grid">
+        <div class="key-row">
+          <label>Anthropic API Key</label>
+          <input type="password" id="apiKey" placeholder="sk-ant-api..." oninput="checkKeys()">
+          <span style="font-size:10px;color:var(--muted)">console.anthropic.com → API Keys</span>
+        </div>
+        <div class="key-row">
+          <label>Google Maps API Key</label>
+          <input type="password" id="mapsKey" placeholder="AIza..." oninput="checkKeys()">
+          <span style="font-size:10px;color:var(--muted)">console.cloud.google.com → Enable Places API</span>
+        </div>
+      </div>
+      <div class="keys-actions">
+        <button class="save-btn" onclick="saveKeys()">💾 Save to this browser</button>
+        <span class="key-hint">Keys are saved locally in your browser — not shared with anyone</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <div class="tier-tabs">
+      <button class="tier-btn active-t1" onclick="setTier(1)" id="t1btn">🏢 Tier 1 — Large</button>
+      <button class="tier-btn" onclick="setTier(2)" id="t2btn">🏪 Tier 2 — Small</button>
+      <button class="tier-btn" onclick="setTier(4)" id="t4btn">🏢🏪 Mix Tier 1+2</button>
+      <button class="tier-btn" onclick="setTier(3)" id="t3btn">⛽ Tier 3 — Diesel</button>
+    </div>
+
+    <div class="controls-grid">
+      <div class="ctrl-group">
+        <label>Suburb / Region</label>
+        <select id="suburb">
+          <option value="">-- Select --</option>
+          <optgroup label="Metro — Sydney"><option>Parramatta NSW</option><option>Blacktown NSW</option><option>Penrith NSW</option><option>Liverpool NSW</option><option>Campbelltown NSW</option><option>Bankstown NSW</option><option>Chatswood NSW</option><option>Hornsby NSW</option></optgroup>
+          <optgroup label="Metro — Melbourne"><option>Dandenong VIC</option><option>Frankston VIC</option><option>Sunshine VIC</option><option>Werribee VIC</option><option>Cranbourne VIC</option><option>Ringwood VIC</option></optgroup>
+          <optgroup label="Metro — Brisbane"><option>Logan QLD</option><option>Ipswich QLD</option><option>Caboolture QLD</option><option>Redcliffe QLD</option><option>Springwood QLD</option><option>Acacia Ridge QLD</option></optgroup>
+          <optgroup label="Metro — Other"><option>Elizabeth SA</option><option>Salisbury SA</option><option>Rockingham WA</option><option>Midland WA</option><option>Belmont WA</option></optgroup>
+          <optgroup label="Regional"><option>Newcastle NSW</option><option>Wollongong NSW</option><option>Albury NSW</option><option>Orange NSW</option><option>Dubbo NSW</option><option>Wagga Wagga NSW</option><option>Ballarat VIC</option><option>Bendigo VIC</option><option>Toowoomba QLD</option><option>Townsville QLD</option><option>Cairns QLD</option><option>Rockhampton QLD</option></optgroup>
+          <optgroup label="Remote / Tier 3"><option>Broken Hill NSW</option><option>Mount Isa QLD</option><option>Alice Springs NT</option><option>Darwin NT</option><option>Kalgoorlie WA</option><option>Port Hedland WA</option><option>Karratha WA</option><option>Broome WA</option></optgroup>
+        </select>
+        <input type="text" id="suburbCustom" placeholder="Or type any suburb..." style="margin-top:7px;">
+      </div>
+      <div class="ctrl-group">
+        <label>Industry</label>
+        <select id="industry">
+          <option value="aged care facility">Aged Care</option>
+          <option value="childcare centre">Childcare</option>
+          <option value="school">Schools & Education</option>
+          <option value="medical clinic">Medical & Dental</option>
+          <option value="retail store">Retail</option>
+          <option value="warehouse industrial">Industrial & Warehousing</option>
+          <option value="restaurant cafe">Hospitality & Restaurants</option>
+          <option value="gym fitness centre">Gyms & Fitness</option>
+          <option value="church community hall">Churches & Community</option>
+          <option value="caravan park">Caravan Parks</option>
+          <option value="farm agriculture">Agriculture & Farming</option>
+          <option value="mining">Mining & Resources</option>
+          <option value="cold storage logistics">Cold Storage & Logistics</option>
+          <option value="supermarket">Supermarkets</option>
+          <option value="service station">Service Stations</option>
+        </select>
+      </div>
+      <div class="ctrl-group">
+        <label>Facilities to find</label>
+        <select id="count">
+          <option value="10">10 facilities</option>
+          <option value="15">15 facilities</option>
+          <option value="20">20 facilities</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="run-btn" id="runBtn" onclick="runSearch()">⚡ Find Real Businesses & Qualify</button>
+    <button class="stop-btn" id="stopBtn" onclick="stopSearch()" style="display:none">■ Stop</button>
+    <div class="error-msg" id="errorMsg"></div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-bar">
+    <div class="stat-card"><div class="stat-num c-green" id="sTotal">0</div><div class="stat-label">📍 Found</div></div>
+    <div class="stat-card"><div class="stat-num c-green" id="sWebsites">0</div><div class="stat-label">🌐 Websites</div></div>
+    <div class="stat-card"><div class="stat-num c-hot" id="sHot">0</div><div class="stat-label">🔥 HOT</div></div>
+    <div class="stat-card"><div class="stat-num c-warm" id="sWarm">0</div><div class="stat-label">✅ WARM</div></div>
+    <div class="stat-card"><div class="stat-num" id="sNoSolar">0</div><div class="stat-label">No Solar</div></div>
+    <div class="stat-card"><div class="stat-num c-purple" id="sSavings">$0</div><div class="stat-label">Pipeline</div></div>
+  </div>
+
+  <!-- Progress -->
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-label" id="progressLabel">Working...</div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+  </div>
+  <div class="status-msg" id="statusMsg"></div>
+
+  <!-- Results header + export -->
+  <div class="section-head" id="sectionHead" style="display:none">
+    <div class="section-title" id="sectionTitle">Results</div>
+  </div>
+  <div class="export-row" id="exportRow" style="display:none">
+    <button class="export-btn" onclick="exportCSV()">⬇ Download CSV</button>
+    <button class="export-btn xlsx" onclick="exportXLSX()">⬇ Download Excel (.xlsx)</button>
+    <span class="export-note" id="exportNote"></span>
+  </div>
+
+  <!-- Results grid -->
+  <div class="leads-grid" id="leadsGrid">
+    <div class="empty-state">
+      <div class="icon">📍</div>
+      <h3>Ready to find leads</h3>
+      <p>Every result is sourced directly from Google Maps — real businesses, real addresses, real websites.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  let currentTier = 1, leads = [], stopFlag = false;
+
+  window.onload = () => {
+    const ak = localStorage.getItem('agile_ak');
+    const mk = localStorage.getItem('agile_mk');
+    if (ak) document.getElementById('apiKey').value = ak;
+    if (mk) document.getElementById('mapsKey').value = mk;
+    checkKeys();
+    // Auto-open keys panel if not set
+    if (!ak || !mk) document.getElementById('keysBody').classList.add('open');
+  };
+
+  function toggleKeys() {
+    document.getElementById('keysBody').classList.toggle('open');
+  }
+
+  function saveKeys() {
+    localStorage.setItem('agile_ak', document.getElementById('apiKey').value.trim());
+    localStorage.setItem('agile_mk', document.getElementById('mapsKey').value.trim());
+    checkKeys();
+    setTimeout(() => document.getElementById('keysBody').classList.remove('open'), 300);
+  }
+
+  function checkKeys() {
+    const k = document.getElementById('apiKey').value.trim();
+    const m = document.getElementById('mapsKey').value.trim();
+    const s = document.getElementById('keysStatus');
+    const bothSet = k.startsWith('sk-ant-') && m.startsWith('AIza');
+    s.textContent = bothSet ? '✓ All keys set' : (k.startsWith('sk-ant-') ? '⚠ Maps key missing' : '⚠ Keys not set');
+    s.className = 'keys-toggle-status ' + (bothSet ? 'all-set' : 'missing');
+  }
+
+  function setTier(t) {
+    currentTier = t;
+    const map = {t1btn:1, t2btn:2, t3btn:3, t4btn:4};
+    Object.entries(map).forEach(([id, num]) => {
+      document.getElementById(id).className = 'tier-btn' + (num===t ? ` active-t${t}` : '');
+    });
+  }
+
+  function getSuburb() { return document.getElementById('suburbCustom').value.trim() || document.getElementById('suburb').value || 'Brisbane QLD'; }
+  function getIndustryKey() { return document.getElementById('industry').value; }
+  function getIndustryLabel() { return document.getElementById('industry').options[document.getElementById('industry').selectedIndex].text; }
+  function tierLabel() { return {1:'Tier 1 — Large',2:'Tier 2 — Small',3:'Tier 3 — Diesel',4:'Mix Tier 1+2'}[currentTier]; }
+
+  function setStatus(msg) { document.getElementById('statusMsg').textContent = msg; }
+  function setError(msg) { document.getElementById('errorMsg').textContent = msg; }
+  function setProgress(pct, label) {
+    document.getElementById('progressWrap').style.display = 'block';
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressLabel').textContent = label;
+  }
+
+  function updateStats() {
+    const q = leads.filter(l => l.score !== undefined);
+    document.getElementById('sTotal').textContent = leads.length;
+    document.getElementById('sWebsites').textContent = leads.filter(l => l.website).length;
+    document.getElementById('sHot').textContent = q.filter(l => l.tier === 'HOT').length;
+    document.getElementById('sWarm').textContent = q.filter(l => l.tier === 'WARM').length;
+    document.getElementById('sNoSolar').textContent = q.filter(l => l.hasSolar === false).length;
+    const savings = q.reduce((s,l) => s + (l.savings||0) + (l.dieselSavings||0), 0);
+    document.getElementById('sSavings').textContent = savings > 0 ? '$'+(savings/1000).toFixed(0)+'k' : '$0';
+  }
+
+  function renderLeads() { document.getElementById('leadsGrid').innerHTML = leads.map(renderCard).join(''); }
+
+  function renderCard(l) {
+    const websiteHtml = l.website
+      ? `<div class="lead-website">🌐 <a href="${l.website}" target="_blank">${l.website.replace(/^https?:\/\//,'').split('/')[0]}</a></div>`
+      : `<div class="lead-website no-site">No website found</div>`;
+    const ratingHtml = l.rating ? `<div class="lead-rating">⭐ ${l.rating} (${l.reviews} reviews)</div>` : '';
+
+    if (l.state==='waiting') return `<div class="lead-card"><div class="lead-name">${esc(l.name)}</div><div class="lead-addr">📍 ${esc(l.address)}</div>${websiteHtml}<div class="pulse" style="opacity:.4;margin-top:8px">Waiting...</div></div>`;
+    if (l.state==='qualifying') return `<div class="lead-card"><div class="lead-name">${esc(l.name)}</div><div class="lead-addr">📍 ${esc(l.address)}</div>${websiteHtml}<div class="pulse" style="margin-top:8px"><div class="dot"></div><div class="dot"></div><div class="dot"></div>Qualifying...</div></div>`;
+    if (!l.score && l.score!==0) return '';
+
+    const tierCls = l.hasSolar?'b-solar':(l.tier==='HOT'?'b-hot':l.tier==='WARM'?'b-warm':'b-cold');
+    const cardClass = l.tier==='HOT'?'hot':l.tier==='WARM'?'warm':currentTier===3?'diesel':'';
+
+    let metrics = `<div class="metric"><span>Score: </span>${l.score}/100</div><div class="metric"><span>Roof: </span>${l.roofSize||'—'}</div><div class="metric"><span>Cap: </span>${l.capacity||'—'}</div><div class="metric"><span>Savings: </span>$${((l.savings||0)/1000).toFixed(0)}k/yr</div>`;
+    if ((currentTier===3||currentTier===4) && l.dieselSavings) {
+      metrics += `<div class="metric" style="border-color:rgba(167,139,250,.3)"><span>Diesel: </span>$${((l.dieselSavings||0)/1000).toFixed(0)}k/yr</div>`;
+      if (l.batterySize) metrics += `<div class="metric" style="border-color:rgba(167,139,250,.3)"><span>Battery: </span>${l.batterySize}</div>`;
+    }
+
+    return `<div class="lead-card ${cardClass}">
+      <div class="lead-header">
+        <div>
+          <div class="lead-name">${esc(l.name)}</div>
+          <div class="lead-addr">📍 ${esc(l.address)}</div>
+          ${websiteHtml}${ratingHtml}
+        </div>
+        <div class="badges">
+          <span class="badge ${tierCls}">${l.hasSolar?'☀️ Has Solar':l.tier}</span>
+          <span class="badge ${l.hasSolar?'b-hassolar':'b-nosolar'}">${l.hasSolar?'Solar Present':'No Solar'}</span>
+          <span class="badge b-maps">✓ Maps</span>
+        </div>
+      </div>
+      <div class="lead-body">${esc(l.reasoning||'')}</div>
+      <div class="lead-metrics">${metrics}</div>
+      ${l.nextStep?`<div class="lead-action">→ ${esc(l.nextStep)}</div>`:''}
+    </div>`;
+  }
+
+  function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // Use relative URLs — works on localhost AND on any hosted domain
+  const BASE = '';
+
+  async function fetchRealBusinesses(suburb, industryKey, count, mapsKey) {
+    const seenIds = new Set(), allResults = [];
+    const queries = currentTier === 4
+      ? [`${industryKey} in ${suburb} Australia`, `small independent ${industryKey} near ${suburb} Australia`, `local ${industryKey} ${suburb}`]
+      : currentTier === 3
+        ? [`remote ${industryKey} ${suburb} Australia`, `diesel ${industryKey} near ${suburb}`]
+        : currentTier === 2
+          ? [`small independent ${industryKey} in ${suburb} Australia`, `local ${industryKey} near ${suburb}`]
+          : [`${industryKey} in ${suburb} Australia`, `${industryKey} near ${suburb} Australia`];
+
+    for (const q of queries) {
+      if (allResults.length >= count) break;
+      const resp = await fetch(`${BASE}/api/places/search?query=${encodeURIComponent(q)}&key=${mapsKey}`);
+      const data = await resp.json();
+      for (const place of (data.results||[])) {
+        if (!seenIds.has(place.place_id) && allResults.length < count) {
+          seenIds.add(place.place_id);
+          allResults.push(place);
+        }
+      }
+    }
+    return allResults.slice(0, count);
+  }
+
+  async function fetchPlaceDetails(placeId, mapsKey) {
+    try {
+      const resp = await fetch(`${BASE}/api/places/details?place_id=${placeId}&key=${mapsKey}`);
+      const data = await resp.json();
+      return data.result || {};
+    } catch(e) { return {}; }
+  }
+
+  async function callClaude(apiKey, prompt) {
+    const resp = await fetch(`${BASE}/api/claude`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        _apiKey: apiKey,
+        model: 'claude-sonnet-4-6',
+        max_tokens: 2000,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    if (!resp.ok) { const err = await resp.json().catch(()=>({})); throw new Error(err.error?.message || `API error ${resp.status}`); }
+    const data = await resp.json();
+    let allText = '';
+    for (const block of (data.content||[])) {
+      if (block.type==='text') allText += block.text + '\n';
+      if (block.type==='tool_result') { for (const inner of (block.content||[])) { if (inner.type==='text') allText += inner.text + '\n'; } }
+    }
+    return allText;
+  }
+
+  function extractJSON(text, isArray) {
+    const open=isArray?'[':'{', close=isArray?']':'}';
+    let start=-1, depth=0, inStr=false, esc2=false;
+    for(let i=0;i<text.length;i++){
+      const c=text[i];
+      if(esc2){esc2=false;continue;} if(c==='\\'&&inStr){esc2=true;continue;} if(c==='"'){inStr=!inStr;continue;} if(inStr)continue;
+      if(c===open){if(depth===0)start=i;depth++;} else if(c===close){depth--;if(depth===0&&start!==-1){try{const r=JSON.parse(text.slice(start,i+1));if(isArray?Array.isArray(r):typeof r==='object')return r;}catch(e){start=-1;depth=0;}}}
+    }
+    const stripped=text.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+    if(stripped!==text){const r2=extractJSON(stripped,isArray);if(r2)return r2;}
+    return null;
+  }
+
+  async function runSearch() {
+    const apiKey = document.getElementById('apiKey').value.trim();
+    const mapsKey = document.getElementById('mapsKey').value.trim();
+    if (!apiKey.startsWith('sk-ant-')) { setError('⚠️ Please enter your Anthropic API key in the Keys panel above.'); return; }
+    if (!mapsKey.startsWith('AIza')) { setError('⚠️ Google Maps key is required. Add it in the Keys panel above.'); return; }
+
+    setError(''); leads=[]; stopFlag=false;
+    document.getElementById('runBtn').disabled=true;
+    document.getElementById('stopBtn').style.display='block';
+    document.getElementById('leadsGrid').innerHTML='';
+    document.getElementById('sectionHead').style.display='none';
+    document.getElementById('exportRow').style.display='none';
+
+    const suburb=getSuburb(), industryKey=getIndustryKey(), industryLabel=getIndustryLabel(), count=parseInt(document.getElementById('count').value);
+
+    setProgress(5, `Step 1/3 — Searching Google Maps for ${industryLabel} in ${suburb}...`);
+    let places;
+    try { places = await fetchRealBusinesses(suburb, industryKey, count, mapsKey); }
+    catch(e) { setError('⚠️ Google Maps search failed: ' + e.message); done(); return; }
+
+    if (!places.length) { setError('⚠️ No businesses found. Try a different suburb or industry.'); done(); return; }
+
+    setProgress(20, `Step 2/3 — Getting website details for ${places.length} businesses...`);
+    leads = places.map(p => ({ ...p, state: 'waiting' }));
+    document.getElementById('sectionHead').style.display='flex';
+    document.getElementById('sectionTitle').textContent=`${leads.length} real businesses found`;
+    renderLeads(); updateStats();
+
+    for (let i=0; i<leads.length; i++) {
+      if (stopFlag) break;
+      if (leads[i].place_id) {
+        const details = await fetchPlaceDetails(leads[i].place_id, mapsKey);
+        leads[i].website = details.website || null;
+        leads[i].phone = details.formatted_phone_number || null;
+      }
+      setProgress(20 + Math.round((i/leads.length)*22), `Details ${i+1}/${leads.length}: ${leads[i].name}`);
+      renderLeads(); updateStats();
+      await sleep(150);
+    }
+
+    setProgress(44, `Step 3/3 — Qualifying ${leads.length} leads for solar potential...`);
+
+    const tierDesc = {1:'large chain or corporate operator',2:'small independent owner-operated business',3:'remote/diesel-dependent facility',4:'business (mix of large and small operators)'}[currentTier];
+    const dieselExtra = currentTier===3 ? '"dieselSavings":number,"batterySize":"e.g. 200kWh",' : '';
+
+    for (let i=0; i<leads.length; i++) {
+      if (stopFlag) break;
+      leads[i].state='qualifying'; renderLeads();
+      setProgress(44 + Math.round((i/leads.length)*54), `Qualifying ${i+1}/${leads.length}: ${leads[i].name}`);
+
+      const websiteHint = leads[i].website ? `Website: ${leads[i].website}` : 'No website found.';
+      const qPrompt = `You are a solar sales analyst for Agile Energy Australia. Qualify this ${industryLabel} business as a solar lead.
+
+Business: ${leads[i].name}
+Address: ${leads[i].address}
+${websiteHint}
+Google Rating: ${leads[i].rating||'N/A'} (${leads[i].reviews||0} reviews)
+Type: ${tierDesc}
+
+Search the web for info on this business. Determine:
+1. Do they already have solar panels?
+2. Estimated roof/facility size?
+3. Recommended solar system size (kW)?
+4. Estimated annual electricity savings ($AUD)?
+5. Lead score 0-100?
+6. Best next action for Agile Energy sales team?
+${currentTier===3?'7. Estimated annual diesel savings from solar+battery?':''}
+
+Return ONLY raw JSON. No markdown. Start { end }:
+{"hasSolar":bool,"tier":"HOT|WARM|COLD","score":number,"roofSize":"sqm","capacity":"kW","savings":number,${dieselExtra}"reasoning":"2-3 sentences","nextStep":"action"}`;
+
+      try {
+        const qText = await callClaude(apiKey, qPrompt);
+        const q = extractJSON(qText, false);
+        leads[i] = q ? {...leads[i],...q,state:'done'} : {...leads[i],state:'done',score:0,tier:'COLD',reasoning:'Could not qualify.'};
+      } catch(e) {
+        leads[i] = {...leads[i],state:'done',score:0,tier:'COLD',reasoning:'Error: '+e.message};
+      }
+      renderLeads(); updateStats(); await sleep(300);
+    }
+
+    setProgress(100, '✅ Complete');
+    const hot=leads.filter(l=>l.tier==='HOT').length, warm=leads.filter(l=>l.tier==='WARM').length;
+    setStatus(`✅ Done — ${hot} HOT + ${warm} WARM leads from ${leads.length} real Google Maps businesses`);
+    document.getElementById('sectionTitle').textContent=`${leads.length} verified businesses — sourced from Google Maps`;
+    document.getElementById('exportRow').style.display='flex';
+    document.getElementById('exportNote').textContent=`${leads.filter(l=>l.score!==undefined).length} leads ready to export`;
+    done();
+  }
+
+  function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+  function stopSearch(){stopFlag=true;setStatus('⏹ Stopped.');if(leads.some(l=>l.score)){document.getElementById('exportRow').style.display='flex';}done();}
+  function done(){document.getElementById('runBtn').disabled=false;document.getElementById('stopBtn').style.display='none';}
+
+  function getRows(){
+    return leads.filter(l=>l.score!==undefined).map(l=>({
+      'Business Name':l.name,'Address':l.address,'Website':l.website||'','Phone':l.phone||'',
+      'Google Maps Rating':l.rating||'','Review Count':l.reviews||0,
+      'Industry':getIndustryLabel(),'Tier':tierLabel(),'Suburb':getSuburb(),
+      'Has Solar':l.hasSolar?'Yes':'No','Lead Rating':l.tier||'','Score (0-100)':l.score||0,
+      'Roof Size':l.roofSize||'','Solar Capacity':l.capacity||'',
+      'Est. Annual Solar Savings ($)':l.savings||0,'Est. Annual Diesel Savings ($)':l.dieselSavings||0,
+      'Battery Size':l.batterySize||'','Analysis':l.reasoning||'','Next Step':l.nextStep||'',
+      'Source':'Google Maps','Date Run':new Date().toLocaleDateString('en-AU')
+    }));
+  }
+
+  function exportCSV(){
+    const rows=getRows(); if(!rows.length){alert('No leads yet.');return;}
+    const headers=Object.keys(rows[0]);
+    const csv='\uFEFF'+[headers,...rows.map(r=>headers.map(h=>`"${String(r[h]).replace(/"/g,'""')}"`))].map(r=>r.join(',')).join('\r\n');
+    const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download=`agile-solar-leads-${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }
+
+  function exportXLSX(){
+    const rows=getRows(); if(!rows.length){alert('No leads yet.');return;}
+    const ws=XLSX.utils.json_to_sheet(rows);
+    ws['!cols']=[{wch:32},{wch:44},{wch:30},{wch:18},{wch:14},{wch:12},{wch:20},{wch:18},{wch:18},{wch:10},{wch:12},{wch:13},{wch:14},{wch:15},{wch:22},{wch:22},{wch:14},{wch:50},{wch:40},{wch:16},{wch:14}];
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,'Solar Leads');
+    const hot=rows.filter(r=>r['Lead Rating']==='HOT').length,warm=rows.filter(r=>r['Lead Rating']==='WARM').length;
+    const savings=rows.reduce((s,r)=>s+(r['Est. Annual Solar Savings ($)']||0)+(r['Est. Annual Diesel Savings ($)']||0),0);
+    const ws2=XLSX.utils.aoa_to_sheet([
+      ['AGILE ENERGY — SOLAR LEAD REPORT',''],['',''],
+      ['Date',new Date().toLocaleDateString('en-AU')],['Suburb',getSuburb()],
+      ['Industry',getIndustryLabel()],['Tier',tierLabel()],['Source','Google Maps (verified real businesses)'],['',''],
+      ['Total Leads',rows.length],['🔥 HOT',hot],['✅ WARM',warm],
+      ['With Websites',rows.filter(r=>r['Website']).length],
+      ['No Existing Solar',rows.filter(r=>r['Has Solar']==='No').length],
+      ['Total Savings Pipeline','$'+(savings/1000).toFixed(0)+'k/yr']
+    ]);
+    ws2['!cols']=[{wch:26},{wch:30}];
+    XLSX.utils.book_append_sheet(wb,ws2,'Summary');
+    XLSX.writeFile(wb,`agile-solar-leads-${new Date().toISOString().slice(0,10)}.xlsx`);
+  }
+</script>
+</body>
+</html>
