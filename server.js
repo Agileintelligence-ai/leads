@@ -79,10 +79,21 @@ function getPlaceDetails(placeId, mapsKey, res) {
   }).on('error', (e) => { res.writeHead(500, corsHeaders()); res.end(JSON.stringify({ error: e.message })); });
 }
 
-// Proxy satellite image — returns image bytes so browser can display without CORS issues
-function getSatelliteImage(address, mapsKey, res) {
+// Geocode an address to lat/lng
+function geocodeAddress(address, mapsKey, res) {
   const encoded = encodeURIComponent(address);
-  const mapsPath = `/maps/api/staticmap?center=${encoded}&zoom=19&size=600x400&maptype=satellite&key=${mapsKey}`;
+  const mapsPath = `/maps/api/geocode/json?address=${encoded}&key=${mapsKey}`;
+  https.get(`https://maps.googleapis.com${mapsPath}`, (apiRes) => {
+    let result = '';
+    apiRes.on('data', chunk => result += chunk);
+    apiRes.on('end', () => { res.writeHead(200, corsHeaders()); res.end(result); });
+  }).on('error', (e) => { res.writeHead(500, corsHeaders()); res.end(JSON.stringify({ error: e.message })); });
+}
+
+// Proxy satellite image using precise lat/lng
+function getSatelliteImage(lat, lng, mapsKey, res) {
+  const center = `${lat},${lng}`;
+  const mapsPath = `/maps/api/staticmap?center=${center}&zoom=19&size=600x400&maptype=satellite&key=${mapsKey}`;
   https.get(`https://maps.googleapis.com${mapsPath}`, (apiRes) => {
     const contentType = apiRes.headers['content-type'] || 'image/png';
     res.writeHead(apiRes.statusCode, {
@@ -139,11 +150,32 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Satellite image proxy
-  if (req.method === 'GET' && parsed.pathname === '/api/satellite') {
+  // Geocoding API
+  if (req.method === 'GET' && parsed.pathname === '/api/geocode') {
     const { address, key } = parsed.query;
-    if (!address || !key) { res.writeHead(400); res.end(); return; }
-    getSatelliteImage(address, key, res);
+    if (!address || !key) { res.writeHead(400, corsHeaders()); res.end(JSON.stringify({ error: 'Missing params' })); return; }
+    geocodeAddress(address, key, res);
+    return;
+  }
+
+  // Satellite image proxy — uses lat/lng for precision
+  if (req.method === 'GET' && parsed.pathname === '/api/satellite') {
+    const { lat, lng, address, key } = parsed.query;
+    if (!key) { res.writeHead(400); res.end(); return; }
+    // Prefer lat/lng, fall back to address
+    if (lat && lng) {
+      getSatelliteImage(lat, lng, key, res);
+    } else if (address) {
+      // Legacy fallback — geocode then fetch
+      const encoded = encodeURIComponent(address);
+      const mapsPath = `/maps/api/staticmap?center=${encoded}&zoom=19&size=600x400&maptype=satellite&key=${key}`;
+      https.get(`https://maps.googleapis.com${mapsPath}`, (apiRes) => {
+        res.writeHead(apiRes.statusCode, { 'Content-Type': apiRes.headers['content-type']||'image/png', 'Access-Control-Allow-Origin': '*' });
+        apiRes.pipe(res);
+      }).on('error', () => { res.writeHead(500); res.end(); });
+    } else {
+      res.writeHead(400); res.end();
+    }
     return;
   }
 

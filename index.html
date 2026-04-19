@@ -430,8 +430,32 @@
     if (!canvas) return;
 
     try {
-      const url = `/api/satellite?address=${encodeURIComponent(l.address)}&key=${encodeURIComponent(mapsKey)}`;
-      const resp = await fetch(url);
+      // Step 1: Geocode address to get precise lat/lng
+      let lat, lng;
+      if (loader) loader.querySelector('span') && (loader.querySelector('span').textContent = 'Geocoding address...');
+
+      // Use geometry from place details if available, otherwise geocode
+      if (l.lat && l.lng) {
+        lat = l.lat; lng = l.lng;
+      } else {
+        const geoResp = await fetch(`/api/geocode?address=${encodeURIComponent(l.address)}&key=${encodeURIComponent(mapsKey)}`);
+        const geoData = await geoResp.json();
+        if (geoData.status === 'OK' && geoData.results?.length > 0) {
+          lat = geoData.results[0].geometry.location.lat;
+          lng = geoData.results[0].geometry.location.lng;
+          // Cache on lead object
+          l.lat = lat; l.lng = lng;
+        }
+      }
+
+      if (loader) loader.querySelector('span') && (loader.querySelector('span').textContent = 'Loading satellite view...');
+
+      // Step 2: Fetch satellite image using precise coordinates
+      const params = lat && lng
+        ? `lat=${lat}&lng=${lng}&key=${encodeURIComponent(mapsKey)}`
+        : `address=${encodeURIComponent(l.address)}&key=${encodeURIComponent(mapsKey)}`;
+
+      const resp = await fetch(`/api/satellite?${params}`);
       if (!resp.ok) throw new Error('fetch failed');
       const blob = await resp.blob();
       const blobUrl = URL.createObjectURL(blob);
@@ -450,6 +474,7 @@
       };
       img.onerror = () => { if (loader) loader.innerHTML = '<span style="color:var(--muted);font-size:11px">Satellite image unavailable</span>'; };
       img.src = blobUrl;
+
     } catch(e) {
       if (loader) loader.innerHTML = '<span style="color:var(--muted);font-size:11px">Could not load satellite image</span>';
     }
@@ -643,6 +668,11 @@
         const details = await fetchPlaceDetails(leads[i].place_id, mapsKey);
         leads[i].website = details.website || null;
         leads[i].phone = details.formatted_phone_number || null;
+        // Cache precise coordinates from place details
+        if (details.geometry?.location) {
+          leads[i].lat = details.geometry.location.lat;
+          leads[i].lng = details.geometry.location.lng;
+        }
       }
       setProgress(20 + Math.round((i/leads.length)*22), `Details ${i+1}/${leads.length}: ${leads[i].name}`);
       renderLeads(); updateStats();
