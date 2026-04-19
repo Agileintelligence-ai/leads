@@ -119,7 +119,7 @@
   /* Solar roof visualisation */
   .roof-section { margin-top: 12px; border-radius: 8px; overflow: hidden; position: relative; cursor: pointer; }
   .roof-section .roof-label { font-size: 10px; color: var(--muted); font-family: 'DM Mono', monospace; margin-bottom: 5px; display: flex; align-items: center; gap: 6px; }
-  .roof-img-wrap { position: relative; width: 100%; height: 200px; border-radius: 8px; overflow: hidden; background: var(--surface2); border: 1px solid var(--border); }
+  .roof-img-wrap { position: relative; width: 100%; height: 220px; border-radius: 8px; overflow: hidden; background: var(--surface2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; }
   .roof-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .roof-img-wrap .panel-overlay { position: absolute; inset: 0; pointer-events: none; }
   .roof-img-wrap .roof-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; flex-direction: column; gap: 8px; }
@@ -383,7 +383,6 @@
   }
 
   function buildRoofSection(l) {
-    // Only show for HOT/WARM leads that are not already solar and have a website
     if (l.hasSolar) return '';
     if (l.tier !== 'HOT' && l.tier !== 'WARM') return '';
     if (!l.website) return '';
@@ -394,42 +393,55 @@
     const imgSrc = `/api/satellite?address=${encodeURIComponent(l.address)}&key=${encodeURIComponent(mapsKey)}`;
     const panelCount = l.capacity ? Math.round(parseFloat(l.capacity) * 2.5) : 20;
     const systemSize = l.capacity || '~50kW';
-    const annualOutput = l.savings ? Math.round((l.savings / 0.12) / 1000) + 'MWh' : '~400MWh';
+    const annualSavings = '$' + ((l.savings||0)/1000).toFixed(0) + 'k';
 
     return `<div class="roof-section">
-      <div class="roof-label">☀️ Solar Layout — ${esc(l.name)} <span style="color:rgba(245,166,35,0.5)">estimated placement</span></div>
+      <div class="roof-label">☀️ Satellite Roof View — estimated solar layout</div>
       <div class="roof-img-wrap" id="roof-${l.place_id}">
-        <div class="roof-loading"><div class="pulse"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>Loading satellite view...</div>
-        <img src="${imgSrc}" 
-          onload="initRoofCanvas(this, '${l.place_id}', ${panelCount})"
-          onerror="this.parentNode.innerHTML='<div class=\\'roof-loading\\'>Satellite image unavailable for this address</div>'"
-          style="display:none">
-        <canvas class="panel-overlay" id="canvas-${l.place_id}"></canvas>
+        <div class="roof-loading" id="loader-${l.place_id}">
+          <div class="pulse"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+          Loading satellite view...
+        </div>
+        <img
+          id="img-${l.place_id}"
+          src="${imgSrc}"
+          crossorigin="anonymous"
+          style="display:none;width:100%;height:100%;object-fit:cover;"
+          onload="onRoofLoad('${l.place_id}', ${panelCount})"
+          onerror="onRoofError('${l.place_id}')"
+        >
+        <canvas id="canvas-${l.place_id}" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;display:none;"></canvas>
       </div>
       <div class="roof-stats">
         <div class="roof-stat">☀️ ${systemSize} system</div>
-        <div class="roof-stat">⚡ ${annualOutput}/yr output</div>
         <div class="roof-stat">🔲 ~${panelCount} panels</div>
-        <div class="roof-stat">💰 $${((l.savings||0)/1000).toFixed(0)}k/yr savings</div>
+        <div class="roof-stat">💰 ${annualSavings}/yr savings</div>
       </div>
       <div style="font-size:10px;color:var(--muted);margin-top:5px;font-family:'DM Mono',monospace">* Panel placement is illustrative — based on estimated roof area</div>
     </div>`;
   }
 
-  function initRoofCanvas(img, placeId, panelCount) {
-    img.style.display = 'block';
-    const wrap = document.getElementById(`roof-${placeId}`);
-    if (wrap) {
-      const loader = wrap.querySelector('.roof-loading');
-      if (loader) loader.remove();
-    }
+  function onRoofLoad(placeId, panelCount) {
+    const img = document.getElementById(`img-${placeId}`);
     const canvas = document.getElementById(`canvas-${placeId}`);
-    if (!canvas) return;
-    canvas.width = img.naturalWidth || img.offsetWidth || 600;
-    canvas.height = img.naturalHeight || img.offsetHeight || 400;
-    canvas.style.width = '100%';
-    canvas.style.height = '100%';
+    const loader = document.getElementById(`loader-${placeId}`);
+    if (!img || !canvas) return;
+
+    // Show image
+    img.style.display = 'block';
+    if (loader) loader.style.display = 'none';
+
+    // Size canvas to match image
+    canvas.width = img.naturalWidth || 600;
+    canvas.height = img.naturalHeight || 400;
+    canvas.style.display = 'block';
+
     drawSolarPanels(canvas, panelCount);
+  }
+
+  function onRoofError(placeId) {
+    const loader = document.getElementById(`loader-${placeId}`);
+    if (loader) loader.innerHTML = '<span style="color:var(--muted);font-size:11px">Satellite image unavailable for this address</span>';
   }
 
   function drawSolarPanels(canvas, count) {
