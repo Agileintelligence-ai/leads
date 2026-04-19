@@ -390,26 +390,25 @@
     const mapsKey = document.getElementById('mapsKey').value.trim();
     if (!mapsKey.startsWith('AIza')) return '';
 
-    const panelCount = l.capacity ? Math.round(parseFloat(l.capacity) / 0.4) : 20; // ~400W panels
+    const panelCount = l.capacity ? Math.round(parseFloat(l.capacity) / 0.4) : 25;
     const systemSize = l.capacity || '~50kW';
     const annualSavings = '$' + ((l.savings||0)/1000).toFixed(0) + 'k';
 
-    // Use a data attribute — load triggered after render via loadRoofImage()
     return `<div class="roof-section">
-      <div class="roof-label">☀️ Satellite Roof View — estimated solar layout</div>
+      <div class="roof-label">☀️ Satellite Roof View — Google Solar API layout</div>
       <div class="roof-img-wrap" id="roof-${l.place_id}">
         <div class="roof-loading" id="loader-${l.place_id}">
           <div class="pulse"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
-          <span>Loading satellite view...</span>
+          <span>Fetching Solar API data...</span>
         </div>
         <canvas id="canvas-${l.place_id}" style="width:100%;height:100%;display:none;"></canvas>
       </div>
-      <div class="roof-stats">
+      <div class="roof-stats" id="roof-stats-${l.place_id}">
         <div class="roof-stat">☀️ ${systemSize} system</div>
         <div class="roof-stat">🔲 ~${panelCount} panels</div>
         <div class="roof-stat">💰 ${annualSavings}/yr savings</div>
       </div>
-      <div style="font-size:10px;color:var(--muted);margin-top:5px;font-family:'DM Mono',monospace">* Panel placement is illustrative — based on estimated roof area</div>
+      <div style="font-size:10px;color:var(--muted);margin-top:5px;font-family:'DM Mono',monospace" id="roof-note-${l.place_id}">* Fetching real roof data from Google Solar API...</div>
     </div>`;
   }
 
@@ -428,136 +427,172 @@
     const canvas = document.getElementById(`canvas-${l.place_id}`);
     const loader = document.getElementById(`loader-${l.place_id}`);
     if (!canvas) return;
-
     try {
-      // Step 1: Geocode address to get precise lat/lng
-      let lat, lng;
-      if (loader) loader.querySelector('span') && (loader.querySelector('span').textContent = 'Geocoding address...');
-
-      // Use geometry from place details if available, otherwise geocode
-      if (l.lat && l.lng) {
-        lat = l.lat; lng = l.lng;
-      } else {
+      // Step 1: Get lat/lng
+      let lat = l.lat, lng = l.lng;
+      if (!lat || !lng) {
+        updateLoader(loader, 'Geocoding address...');
         const geoResp = await fetch(`/api/geocode?address=${encodeURIComponent(l.address)}&key=${encodeURIComponent(mapsKey)}`);
         const geoData = await geoResp.json();
         if (geoData.status === 'OK' && geoData.results?.length > 0) {
           lat = geoData.results[0].geometry.location.lat;
           lng = geoData.results[0].geometry.location.lng;
-          // Cache on lead object
           l.lat = lat; l.lng = lng;
         }
       }
 
-      if (loader) loader.querySelector('span') && (loader.querySelector('span').textContent = 'Loading satellite view...');
+      // Step 2: Google Solar API for real roof segment data
+      let roofSegments = null;
+      let panelCount = l.capacity ? Math.round(parseFloat(l.capacity) / 0.4) : 25;
+      let usedSolarApi = false;
 
-      // Step 2: Fetch satellite image using precise coordinates
-      const params = lat && lng
-        ? `lat=${lat}&lng=${lng}&key=${encodeURIComponent(mapsKey)}`
-        : `address=${encodeURIComponent(l.address)}&key=${encodeURIComponent(mapsKey)}`;
+      if (lat && lng) {
+        updateLoader(loader, 'Fetching Google Solar API data...');
+        try {
+          const solarResp = await fetch(`/api/solar/insights?lat=${lat}&lng=${lng}&key=${encodeURIComponent(mapsKey)}`);
+          const solarData = await solarResp.json();
+          const sp = solarData.solarPotential;
+          if (sp) {
+            usedSolarApi = true;
+            if (sp.roofSegmentStats?.length > 0) roofSegments = sp.roofSegmentStats;
 
-      const resp = await fetch(`/api/satellite?${params}`);
-      if (!resp.ok) throw new Error('fetch failed');
+            // Find best config for target capacity
+            const targetKw = parseFloat(l.capacity) || 99;
+            const configs = sp.solarPanelConfigs || [];
+            let best = configs[configs.length - 1];
+            for (const cfg of configs) {
+              if (cfg.panelsCount * 0.4 >= targetKw) { best = cfg; break; }
+            }
+            if (best?.panelsCount) panelCount = best.panelsCount;
+
+            // Update stats with real data
+            const statsEl = document.getElementById(`roof-stats-${l.place_id}`);
+            const noteEl = document.getElementById(`roof-note-${l.place_id}`);
+            if (statsEl) {
+              const kw = Math.round(panelCount * 0.4);
+              const sunHrs = sp.maxSunshineHoursPerYear ? Math.round(sp.maxSunshineHoursPerYear) : null;
+              const area = sp.maxArrayAreaMeters2 ? Math.round(sp.maxArrayAreaMeters2) + 'm²' : null;
+              statsEl.innerHTML = `
+                <div class="roof-stat">☀️ ${kw}kW system</div>
+                <div class="roof-stat">🔲 ${Math.min(panelCount,60)} panels shown</div>
+                ${sunHrs ? `<div class="roof-stat">🌤 ${sunHrs}h sun/yr</div>` : ''}
+                ${area ? `<div class="roof-stat">📐 ${area} usable roof</div>` : ''}
+                <div class="roof-stat">💰 $${((l.savings||0)/1000).toFixed(0)}k/yr savings</div>
+                <div class="roof-stat" style="color:var(--accent2);border-color:rgba(62,207,142,0.3)">✓ Google Solar API</div>
+              `;
+            }
+            if (noteEl) noteEl.textContent = `Real roof data from Google Solar API — ${roofSegments ? roofSegments.length + ' roof segments detected' : 'single roof zone'}`;
+          }
+        } catch(e) {
+          const noteEl = document.getElementById(`roof-note-${l.place_id}`);
+          if (noteEl) noteEl.textContent = '* Panel placement estimated — Solar API unavailable for this location';
+        }
+      }
+
+      // Step 3: Satellite image
+      updateLoader(loader, 'Loading satellite image...');
+      const resp = await fetch(`/api/satellite?lat=${lat}&lng=${lng}&key=${encodeURIComponent(mapsKey)}`);
+      if (!resp.ok) throw new Error('Satellite fetch failed');
       const blob = await resp.blob();
       const blobUrl = URL.createObjectURL(blob);
-
       const img = new Image();
       img.onload = () => {
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
+        canvas.width = img.naturalWidth || 600;
+        canvas.height = img.naturalHeight || 400;
         canvas.style.display = 'block';
         if (loader) loader.style.display = 'none';
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0);
-    const panelCount = l.capacity ? Math.round(parseFloat(l.capacity) / 0.4) : 20; // ~400W per panel
-        drawSolarPanels(canvas, panelCount);
+        const showPanels = Math.min(panelCount, 60);
+        if (roofSegments?.length > 0) {
+          drawPanelsOnSegments(canvas, roofSegments, showPanels, lat, lng);
+        } else {
+          drawPanelsCentred(canvas, showPanels);
+        }
         URL.revokeObjectURL(blobUrl);
       };
       img.onerror = () => { if (loader) loader.innerHTML = '<span style="color:var(--muted);font-size:11px">Satellite image unavailable</span>'; };
       img.src = blobUrl;
-
     } catch(e) {
-      if (loader) loader.innerHTML = '<span style="color:var(--muted);font-size:11px">Could not load satellite image</span>';
+      if (loader) loader.innerHTML = `<span style="color:var(--muted);font-size:11px">Error: ${e.message}</span>`;
     }
+  }
+
+  function updateLoader(loader, msg) {
+    if (!loader) return;
+    const span = loader.querySelector('span');
+    if (span) span.textContent = msg;
+  }
+
+  function drawPanelsOnSegments(canvas, segments, totalPanels, centerLat, centerLng) {
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const metersPerPx = 0.149; // zoom 19, ~lat -33
+    const sorted = [...segments].sort((a,b) => (b.stats?.areaMeters2||0) - (a.stats?.areaMeters2||0));
+    const pW = 9, pH = 15, gX = 2, gY = 2;
+    let drawnTotal = 0;
+    const maxShow = Math.min(totalPanels, 60);
+    for (const seg of sorted.slice(0, 3)) {
+      if (drawnTotal >= maxShow) break;
+      const segLat = seg.center?.latitude || centerLat;
+      const segLng = seg.center?.longitude || centerLng;
+      const dxM = (segLng - centerLng) * 111320 * Math.cos(centerLat * Math.PI / 180);
+      const dyM = (segLat - centerLat) * 110540;
+      const px = Math.round(W/2 + dxM/metersPerPx);
+      const py = Math.round(H/2 - dyM/metersPerPx);
+      const areaSqm = seg.stats?.areaMeters2 || 100;
+      const panelsHere = Math.min(Math.floor(areaSqm/2.2), maxShow - drawnTotal, 30);
+      if (panelsHere <= 0) continue;
+      const cols = Math.max(1, Math.round(Math.sqrt(panelsHere * 1.6)));
+      const rows = Math.ceil(panelsHere / cols);
+      const arrW = cols*(pW+gX)-gX, arrH = rows*(pH+gY)-gY;
+      const sx = Math.max(8, Math.min(W-arrW-8, px-arrW/2));
+      const sy = Math.max(8, Math.min(H-arrH-8, py-arrH/2));
+      let drawn = 0;
+      for (let r=0; r<rows && drawn<panelsHere; r++) {
+        for (let c=0; c<cols && drawn<panelsHere; c++) {
+          drawOnePanel(ctx, sx+c*(pW+gX), sy+r*(pH+gY), pW, pH);
+          drawn++;
+        }
+      }
+      drawnTotal += drawn;
+    }
+    ctx.fillStyle='rgba(0,0,0,0.72)'; ctx.fillRect(8,H-22,155,16);
+    ctx.fillStyle='#f5a623'; ctx.font='bold 9px sans-serif';
+    ctx.fillText(`☀ ${drawnTotal} panels across ${Math.min(sorted.length,3)} roof sections`, 12, H-10);
+  }
+
+  function drawPanelsCentred(canvas, panelCount) {
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const pW=9, pH=15, gX=2, gY=2;
+    const show = Math.min(panelCount, 60);
+    const cols = Math.max(1, Math.round(Math.sqrt(show*1.5)));
+    const rows = Math.ceil(show/cols);
+    const arrW=cols*(pW+gX)-gX, arrH=rows*(pH+gY)-gY;
+    const sx=Math.round((W-arrW)/2), sy=Math.round((H-arrH)/2)-20;
+    let drawn=0;
+    for (let r=0; r<rows; r++) for (let c=0; c<cols && drawn<show; c++) { drawOnePanel(ctx, sx+c*(pW+gX), sy+r*(pH+gY), pW, pH); drawn++; }
+    ctx.fillStyle='rgba(0,0,0,0.72)'; ctx.fillRect(sx, sy+arrH+5, 120, 14);
+    ctx.fillStyle='#f5a623'; ctx.font='bold 9px sans-serif';
+    ctx.fillText(`☀ ${drawn} panels (est.)`, sx+4, sy+arrH+14);
+  }
+
+  function drawOnePanel(ctx, x, y, pW, pH) {
+    ctx.fillStyle='#0a1556'; ctx.fillRect(x,y,pW,pH);
+    const g=ctx.createLinearGradient(x,y,x+pW,y+pH);
+    g.addColorStop(0,'rgba(140,200,255,0.5)'); g.addColorStop(1,'rgba(10,40,140,0.3)');
+    ctx.fillStyle=g; ctx.fillRect(x,y,pW,pH);
+    ctx.strokeStyle='rgba(160,210,255,0.6)'; ctx.lineWidth=0.4;
+    ctx.beginPath(); ctx.moveTo(x+pW/2,y); ctx.lineTo(x+pW/2,y+pH); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x,y+pH/3); ctx.lineTo(x+pW,y+pH/3); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x,y+pH*2/3); ctx.lineTo(x+pW,y+pH*2/3); ctx.stroke();
+    ctx.strokeStyle='rgba(200,230,255,0.9)'; ctx.lineWidth=0.5; ctx.strokeRect(x,y,pW,pH);
   }
 
   function onRoofError(placeId) {
     const loader = document.getElementById(`loader-${placeId}`);
     if (loader) loader.innerHTML = '<span style="color:var(--muted);font-size:11px">Satellite image unavailable</span>';
-  }
-
-  function drawSolarPanels(canvas, panelCount) {
-    const ctx = canvas.getContext('2d');
-    const W = canvas.width;   // 600px
-    const H = canvas.height;  // 400px
-
-    // Fixed panel size — small enough to see individual panels clearly
-    // At zoom 19, ~0.15m/px. Panel = 1.7m x 1.0m = ~11px x ~7px
-    const pW = 9;   // panel width in px
-    const pH = 15;  // panel height in px
-    const gX = 2;   // gap x
-    const gY = 2;   // gap y
-
-    // How many panels fit in a row/col
-    const cols = Math.floor((W * 0.5) / (pW + gX));  // max ~16 cols
-    const rows = Math.ceil(panelCount / cols);
-
-    // Cap total panels shown to what realistically fits
-    const show = Math.min(panelCount, cols * rows, 60);
-    const actualRows = Math.ceil(show / cols);
-
-    // Total array size
-    const arrW = cols * (pW + gX) - gX;
-    const arrH = actualRows * (pH + gY) - gY;
-
-    // Position: centre of image, slightly upper half (where roof usually is)
-    const startX = Math.round((W - arrW) / 2);
-    const startY = Math.round((H - arrH) / 2) - Math.round(H * 0.05);
-
-    let drawn = 0;
-    for (let r = 0; r < actualRows; r++) {
-      for (let c = 0; c < cols; c++) {
-        if (drawn >= show) break;
-        const x = startX + c * (pW + gX);
-        const y = startY + r * (pH + gY);
-
-        // Dark navy panel
-        ctx.fillStyle = '#0a1556';
-        ctx.fillRect(x, y, pW, pH);
-
-        // Shimmer
-        const g = ctx.createLinearGradient(x, y, x + pW, y + pH);
-        g.addColorStop(0, 'rgba(140,200,255,0.5)');
-        g.addColorStop(1, 'rgba(10,40,140,0.3)');
-        ctx.fillStyle = g;
-        ctx.fillRect(x, y, pW, pH);
-
-        // Single vertical centre line
-        ctx.strokeStyle = 'rgba(160,210,255,0.6)';
-        ctx.lineWidth = 0.4;
-        ctx.beginPath();
-        ctx.moveTo(x + pW / 2, y);
-        ctx.lineTo(x + pW / 2, y + pH);
-        ctx.stroke();
-
-        // Horizontal thirds
-        ctx.beginPath(); ctx.moveTo(x, y + pH/3); ctx.lineTo(x + pW, y + pH/3); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(x, y + pH*2/3); ctx.lineTo(x + pW, y + pH*2/3); ctx.stroke();
-
-        // Panel border
-        ctx.strokeStyle = 'rgba(200,230,255,0.9)';
-        ctx.lineWidth = 0.5;
-        ctx.strokeRect(x, y, pW, pH);
-
-        drawn++;
-      }
-    }
-
-    // Label tag
-    ctx.fillStyle = 'rgba(0,0,0,0.72)';
-    ctx.fillRect(startX, startY + arrH + 5, 120, 14);
-    ctx.fillStyle = '#f5a623';
-    ctx.font = 'bold 9px sans-serif';
-    ctx.fillText(`☀ ${drawn} panels (est.)`, startX + 4, startY + arrH + 14);
   }
 
   function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
