@@ -116,6 +116,18 @@
   .metric span { color: var(--muted); }
   .lead-action { margin-top: 8px; padding: 7px 10px; background: rgba(245,166,35,0.07); border-radius: 6px; font-size: 11px; color: var(--accent); border-left: 2px solid var(--accent); }
 
+  /* Solar roof visualisation */
+  .roof-section { margin-top: 12px; border-radius: 8px; overflow: hidden; position: relative; cursor: pointer; }
+  .roof-section .roof-label { font-size: 10px; color: var(--muted); font-family: 'DM Mono', monospace; margin-bottom: 5px; display: flex; align-items: center; gap: 6px; }
+  .roof-img-wrap { position: relative; width: 100%; height: 200px; border-radius: 8px; overflow: hidden; background: var(--surface2); border: 1px solid var(--border); }
+  .roof-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .roof-img-wrap .panel-overlay { position: absolute; inset: 0; pointer-events: none; }
+  .roof-img-wrap .roof-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; flex-direction: column; gap: 8px; }
+  .roof-stats { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+  .roof-stat { background: rgba(245,166,35,0.1); border: 1px solid rgba(245,166,35,0.25); border-radius: 6px; padding: 4px 8px; font-size: 10px; font-family: 'DM Mono', monospace; color: var(--accent); }
+  .expand-btn { font-size: 10px; color: var(--muted); cursor: pointer; background: none; border: none; padding: 0; font-family: 'DM Mono', monospace; margin-top: 4px; }
+  .expand-btn:hover { color: var(--accent); }
+
   .pulse { display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px;font-family:'DM Mono',monospace;padding:8px 0; }
   .dot { width:6px;height:6px;border-radius:50%;background:var(--accent);animation:p 1.2s infinite; }
   .dot:nth-child(2){animation-delay:.2s;} .dot:nth-child(3){animation-delay:.4s;}
@@ -350,7 +362,7 @@
       if (l.batterySize) metrics += `<div class="metric" style="border-color:rgba(167,139,250,.3)"><span>Battery: </span>${l.batterySize}</div>`;
     }
 
-    return `<div class="lead-card ${cardClass}">
+    return `<div class="lead-card ${cardClass}" id="card-${l.place_id}">
       <div class="lead-header">
         <div>
           <div class="lead-name">${esc(l.name)}</div>
@@ -366,7 +378,127 @@
       <div class="lead-body">${esc(l.reasoning||'')}</div>
       <div class="lead-metrics">${metrics}</div>
       ${l.nextStep?`<div class="lead-action">→ ${esc(l.nextStep)}</div>`:''}
+      ${buildRoofSection(l)}
     </div>`;
+  }
+
+  function buildRoofSection(l) {
+    // Only show for HOT/WARM leads that are not already solar and have a website
+    if (l.hasSolar) return '';
+    if (l.tier !== 'HOT' && l.tier !== 'WARM') return '';
+    if (!l.website) return '';
+
+    const mapsKey = document.getElementById('mapsKey').value.trim();
+    if (!mapsKey.startsWith('AIza')) return '';
+
+    const imgSrc = `/api/satellite?address=${encodeURIComponent(l.address)}&key=${encodeURIComponent(mapsKey)}`;
+    const panelCount = l.capacity ? Math.round(parseFloat(l.capacity) * 2.5) : 20;
+    const systemSize = l.capacity || '~50kW';
+    const annualOutput = l.savings ? Math.round((l.savings / 0.12) / 1000) + 'MWh' : '~400MWh';
+
+    return `<div class="roof-section">
+      <div class="roof-label">☀️ Solar Layout — ${esc(l.name)} <span style="color:rgba(245,166,35,0.5)">estimated placement</span></div>
+      <div class="roof-img-wrap" id="roof-${l.place_id}">
+        <div class="roof-loading"><div class="pulse"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>Loading satellite view...</div>
+        <img src="${imgSrc}" 
+          onload="initRoofCanvas(this, '${l.place_id}', ${panelCount})"
+          onerror="this.parentNode.innerHTML='<div class=\\'roof-loading\\'>Satellite image unavailable for this address</div>'"
+          style="display:none">
+        <canvas class="panel-overlay" id="canvas-${l.place_id}"></canvas>
+      </div>
+      <div class="roof-stats">
+        <div class="roof-stat">☀️ ${systemSize} system</div>
+        <div class="roof-stat">⚡ ${annualOutput}/yr output</div>
+        <div class="roof-stat">🔲 ~${panelCount} panels</div>
+        <div class="roof-stat">💰 $${((l.savings||0)/1000).toFixed(0)}k/yr savings</div>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-top:5px;font-family:'DM Mono',monospace">* Panel placement is illustrative — based on estimated roof area</div>
+    </div>`;
+  }
+
+  function initRoofCanvas(img, placeId, panelCount) {
+    img.style.display = 'block';
+    const wrap = document.getElementById(`roof-${placeId}`);
+    if (wrap) {
+      const loader = wrap.querySelector('.roof-loading');
+      if (loader) loader.remove();
+    }
+    const canvas = document.getElementById(`canvas-${placeId}`);
+    if (!canvas) return;
+    canvas.width = img.naturalWidth || img.offsetWidth || 600;
+    canvas.height = img.naturalHeight || img.offsetHeight || 400;
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    drawSolarPanels(canvas, panelCount);
+  }
+
+  function drawSolarPanels(canvas, count) {
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+
+    // Find the "roof zone" — centre 60% of image to avoid roads/surrounds
+    const marginX = W * 0.2, marginY = H * 0.2;
+    const roofW = W * 0.6, roofH = H * 0.6;
+
+    // Panel dimensions
+    const pW = Math.max(18, Math.round(roofW / 12));
+    const pH = Math.round(pW * 1.6);
+    const gapX = 3, gapY = 3;
+    const cols = Math.floor(roofW / (pW + gapX));
+    const rows = Math.floor(roofH / (pH + gapY));
+    const totalSlots = cols * rows;
+    const panelsToShow = Math.min(count, totalSlots);
+
+    // Draw semi-transparent dark overlay on roof zone
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    ctx.fillRect(marginX, marginY, roofW, roofH);
+
+    // Draw panels
+    let drawn = 0;
+    for (let r = 0; r < rows && drawn < panelsToShow; r++) {
+      for (let c = 0; c < cols && drawn < panelsToShow; c++) {
+        const x = marginX + c * (pW + gapX);
+        const y = marginY + r * (pH + gapY);
+
+        // Panel body — dark blue/grey
+        ctx.fillStyle = '#1a237e';
+        ctx.fillRect(x, y, pW, pH);
+
+        // Panel shimmer — gradient overlay
+        const grad = ctx.createLinearGradient(x, y, x + pW, y + pH);
+        grad.addColorStop(0, 'rgba(100,160,255,0.35)');
+        grad.addColorStop(0.5, 'rgba(60,100,200,0.1)');
+        grad.addColorStop(1, 'rgba(20,60,150,0.3)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(x, y, pW, pH);
+
+        // Cell grid lines
+        ctx.strokeStyle = 'rgba(150,200,255,0.4)';
+        ctx.lineWidth = 0.5;
+        const cellCols = 3, cellRows = 4;
+        const cellW = pW / cellCols, cellH = pH / cellRows;
+        for (let ci = 1; ci < cellCols; ci++) {
+          ctx.beginPath(); ctx.moveTo(x + ci*cellW, y); ctx.lineTo(x + ci*cellW, y+pH); ctx.stroke();
+        }
+        for (let ri = 1; ri < cellRows; ri++) {
+          ctx.beginPath(); ctx.moveTo(x, y + ri*cellH); ctx.lineTo(x+pW, y + ri*cellH); ctx.stroke();
+        }
+
+        // Panel border
+        ctx.strokeStyle = 'rgba(200,230,255,0.6)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x, y, pW, pH);
+
+        drawn++;
+      }
+    }
+
+    // Label
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(marginX, marginY + roofH + 4, 160, 18);
+    ctx.fillStyle = '#f5a623';
+    ctx.font = `bold ${Math.max(10,Math.round(W/55))}px sans-serif`;
+    ctx.fillText(`☀ ${panelsToShow} panels (estimated)`, marginX + 6, marginY + roofH + 16);
   }
 
   function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }

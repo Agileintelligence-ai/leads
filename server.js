@@ -70,13 +70,28 @@ function searchPlaces(query, mapsKey, res) {
 }
 
 function getPlaceDetails(placeId, mapsKey, res) {
-  const fields = 'name,formatted_address,website,formatted_phone_number,rating,url';
+  const fields = 'name,formatted_address,website,formatted_phone_number,rating,url,geometry';
   const mapsPath = `/maps/api/place/details/json?place_id=${placeId}&fields=${fields}&key=${mapsKey}`;
   https.get(`https://maps.googleapis.com${mapsPath}`, (apiRes) => {
     let result = '';
     apiRes.on('data', chunk => result += chunk);
     apiRes.on('end', () => { res.writeHead(200, corsHeaders()); res.end(result); });
   }).on('error', (e) => { res.writeHead(500, corsHeaders()); res.end(JSON.stringify({ error: e.message })); });
+}
+
+// Proxy satellite image — returns image bytes so browser can display without CORS issues
+function getSatelliteImage(address, mapsKey, res) {
+  const encoded = encodeURIComponent(address);
+  const mapsPath = `/maps/api/staticmap?center=${encoded}&zoom=19&size=600x400&maptype=satellite&key=${mapsKey}`;
+  https.get(`https://maps.googleapis.com${mapsPath}`, (apiRes) => {
+    const contentType = apiRes.headers['content-type'] || 'image/png';
+    res.writeHead(apiRes.statusCode, {
+      'Content-Type': contentType,
+      'Access-Control-Allow-Origin': '*',
+      'Cache-Control': 'public, max-age=86400'
+    });
+    apiRes.pipe(res);
+  }).on('error', (e) => { res.writeHead(500); res.end(); });
 }
 
 const server = http.createServer((req, res) => {
@@ -121,6 +136,14 @@ const server = http.createServer((req, res) => {
     const { place_id, key } = parsed.query;
     if (!place_id || !key) { res.writeHead(400, corsHeaders()); res.end(JSON.stringify({ error: 'Missing params' })); return; }
     getPlaceDetails(place_id, key, res);
+    return;
+  }
+
+  // Satellite image proxy
+  if (req.method === 'GET' && parsed.pathname === '/api/satellite') {
+    const { address, key } = parsed.query;
+    if (!address || !key) { res.writeHead(400); res.end(); return; }
+    getSatelliteImage(address, key, res);
     return;
   }
 
