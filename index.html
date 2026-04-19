@@ -390,7 +390,7 @@
     const mapsKey = document.getElementById('mapsKey').value.trim();
     if (!mapsKey.startsWith('AIza')) return '';
 
-    const panelCount = l.capacity ? Math.round(parseFloat(l.capacity) * 2.5) : 20;
+    const panelCount = l.capacity ? Math.round(parseFloat(l.capacity) / 0.4) : 20; // ~400W panels
     const systemSize = l.capacity || '~50kW';
     const annualSavings = '$' + ((l.savings||0)/1000).toFixed(0) + 'k';
 
@@ -468,7 +468,7 @@
         if (loader) loader.style.display = 'none';
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0);
-        const panelCount = l.capacity ? Math.round(parseFloat(l.capacity) * 2.5) : 20;
+    const panelCount = l.capacity ? Math.round(parseFloat(l.capacity) / 0.4) : 20; // ~400W per panel
         drawSolarPanels(canvas, panelCount);
         URL.revokeObjectURL(blobUrl);
       };
@@ -489,77 +489,71 @@
     const ctx = canvas.getContext('2d');
     const W = canvas.width, H = canvas.height;
 
-    // Roof zone — centre portion of the satellite image
-    const marginX = W * 0.18, marginY = H * 0.15;
-    const roofW = W * 0.64, roofH = H * 0.58;
-
-    // Realistic panel size: ~1.7m x 1.0m at zoom 19 (~0.3m/px = ~5-6px per panel)
-    const pW = Math.round(W / 28);   // ~21px wide
-    const pH = Math.round(pW * 1.7); // ~36px tall
+    // At zoom 19, Google Maps Static = ~0.15m per pixel at Australian latitudes
+    // A standard 1.7m x 1.0m panel = ~11px tall x ~7px wide
+    const pW = Math.round(W / 55);   // ~11px wide
+    const pH = Math.round(pW * 1.7); // ~19px tall
     const gapX = 2, gapY = 2;
+
+    // Roof zone — middle 55% of image
+    const marginX = W * 0.22, marginY = H * 0.18;
+    const roofW = W * 0.56, roofH = H * 0.56;
 
     const cols = Math.floor(roofW / (pW + gapX));
     const rows = Math.floor(roofH / (pH + gapY));
 
-    // Cap panel count to what fits
-    const maxPanels = cols * rows;
-    const panelsToShow = Math.min(panelCount, maxPanels, 120);
+    // Only draw as many panels as makes sense for the system size
+    const panelsToShow = Math.min(panelCount, cols * rows, 80);
 
-    // Centre the panel array on the roof
-    const arrayW = cols * (pW + gapX) - gapX;
-    const arrayH = Math.ceil(panelsToShow / cols) * (pH + gapY) - gapY;
+    // Centre the array within the roof zone
+    const usedCols = Math.min(cols, panelsToShow);
+    const usedRows = Math.ceil(panelsToShow / usedCols);
+    const arrayW = usedCols * (pW + gapX) - gapX;
+    const arrayH = usedRows * (pH + gapY) - gapY;
     const startX = marginX + (roofW - arrayW) / 2;
     const startY = marginY + (roofH - arrayH) / 2;
 
     let drawn = 0;
-    outer:
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        if (drawn >= panelsToShow) break outer;
+    for (let r = 0; r < usedRows; r++) {
+      for (let c = 0; c < usedCols; c++) {
+        if (drawn >= panelsToShow) break;
         const x = startX + c * (pW + gapX);
         const y = startY + r * (pH + gapY);
 
-        // Panel body
-        ctx.fillStyle = '#0d1b6e';
+        // Panel base — deep navy blue
+        ctx.fillStyle = '#0a1556';
         ctx.fillRect(x, y, pW, pH);
 
-        // Glare gradient
+        // Glare shimmer
         const grad = ctx.createLinearGradient(x, y, x + pW, y + pH);
-        grad.addColorStop(0,   'rgba(120,180,255,0.45)');
-        grad.addColorStop(0.4, 'rgba(60,100,220,0.15)');
-        grad.addColorStop(1,   'rgba(10,40,140,0.35)');
+        grad.addColorStop(0,   'rgba(130,190,255,0.5)');
+        grad.addColorStop(0.3, 'rgba(70,120,230,0.2)');
+        grad.addColorStop(1,   'rgba(10,30,120,0.4)');
         ctx.fillStyle = grad;
         ctx.fillRect(x, y, pW, pH);
 
-        // Cell lines — 3 cols, 5 rows of cells
-        ctx.strokeStyle = 'rgba(160,210,255,0.5)';
+        // Cell grid — 2 cols, 3 rows
+        ctx.strokeStyle = 'rgba(150,200,255,0.55)';
         ctx.lineWidth = 0.4;
-        for (let ci = 1; ci < 3; ci++) {
-          const lx = x + ci * (pW / 3);
-          ctx.beginPath(); ctx.moveTo(lx, y); ctx.lineTo(lx, y + pH); ctx.stroke();
-        }
-        for (let ri = 1; ri < 5; ri++) {
-          const ly = y + ri * (pH / 5);
-          ctx.beginPath(); ctx.moveTo(x, ly); ctx.lineTo(x + pW, ly); ctx.stroke();
-        }
+        ctx.beginPath(); ctx.moveTo(x + pW/2, y); ctx.lineTo(x + pW/2, y + pH); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x, y + pH/3); ctx.lineTo(x + pW, y + pH/3); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x, y + pH*2/3); ctx.lineTo(x + pW, y + pH*2/3); ctx.stroke();
 
-        // Panel border
-        ctx.strokeStyle = 'rgba(180,220,255,0.7)';
-        ctx.lineWidth = 0.7;
+        // Border
+        ctx.strokeStyle = 'rgba(180,220,255,0.8)';
+        ctx.lineWidth = 0.6;
         ctx.strokeRect(x, y, pW, pH);
 
         drawn++;
       }
     }
 
-    // Small label bottom-left of array
-    const lblX = startX;
-    const lblY = startY + arrayH + 8;
-    ctx.fillStyle = 'rgba(0,0,0,0.65)';
-    ctx.fillRect(lblX, lblY, 148, 16);
+    // Label
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(startX, startY + arrayH + 4, 130, 15);
     ctx.fillStyle = '#f5a623';
-    ctx.font = `bold ${Math.max(9, Math.round(W/70))}px sans-serif`;
-    ctx.fillText(`☀ ${drawn} panels (estimated)`, lblX + 5, lblY + 11);
+    ctx.font = `bold ${Math.max(8, Math.round(W/75))}px sans-serif`;
+    ctx.fillText(`☀ ${drawn} panels (est.)`, startX + 4, startY + arrayH + 14);
   }
 
   function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
