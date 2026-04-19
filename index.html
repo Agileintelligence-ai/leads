@@ -390,27 +390,19 @@
     const mapsKey = document.getElementById('mapsKey').value.trim();
     if (!mapsKey.startsWith('AIza')) return '';
 
-    const imgSrc = `/api/satellite?address=${encodeURIComponent(l.address)}&key=${encodeURIComponent(mapsKey)}`;
     const panelCount = l.capacity ? Math.round(parseFloat(l.capacity) * 2.5) : 20;
     const systemSize = l.capacity || '~50kW';
     const annualSavings = '$' + ((l.savings||0)/1000).toFixed(0) + 'k';
 
+    // Use a data attribute — load triggered after render via loadRoofImage()
     return `<div class="roof-section">
       <div class="roof-label">☀️ Satellite Roof View — estimated solar layout</div>
       <div class="roof-img-wrap" id="roof-${l.place_id}">
         <div class="roof-loading" id="loader-${l.place_id}">
           <div class="pulse"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
-          Loading satellite view...
+          <span>Loading satellite view...</span>
         </div>
-        <img
-          id="img-${l.place_id}"
-          src="${imgSrc}"
-          crossorigin="anonymous"
-          style="display:none;width:100%;height:100%;object-fit:cover;"
-          onload="onRoofLoad('${l.place_id}', ${panelCount})"
-          onerror="onRoofError('${l.place_id}')"
-        >
-        <canvas id="canvas-${l.place_id}" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;display:none;"></canvas>
+        <canvas id="canvas-${l.place_id}" style="width:100%;height:100%;display:none;"></canvas>
       </div>
       <div class="roof-stats">
         <div class="roof-stat">☀️ ${systemSize} system</div>
@@ -421,27 +413,51 @@
     </div>`;
   }
 
-  function onRoofLoad(placeId, panelCount) {
-    const img = document.getElementById(`img-${placeId}`);
-    const canvas = document.getElementById(`canvas-${placeId}`);
-    const loader = document.getElementById(`loader-${placeId}`);
-    if (!img || !canvas) return;
+  // Called after renderLeads() to fetch and draw each satellite image
+  async function loadAllRoofImages() {
+    const mapsKey = document.getElementById('mapsKey').value.trim();
+    if (!mapsKey.startsWith('AIza')) return;
+    for (const l of leads) {
+      if (!l.hasSolar && (l.tier==='HOT'||l.tier==='WARM') && l.website && l.place_id) {
+        loadRoofImage(l, mapsKey);
+      }
+    }
+  }
 
-    // Show image
-    img.style.display = 'block';
-    if (loader) loader.style.display = 'none';
+  async function loadRoofImage(l, mapsKey) {
+    const canvas = document.getElementById(`canvas-${l.place_id}`);
+    const loader = document.getElementById(`loader-${l.place_id}`);
+    if (!canvas) return;
 
-    // Size canvas to match image
-    canvas.width = img.naturalWidth || 600;
-    canvas.height = img.naturalHeight || 400;
-    canvas.style.display = 'block';
+    try {
+      const url = `/api/satellite?address=${encodeURIComponent(l.address)}&key=${encodeURIComponent(mapsKey)}`;
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error('fetch failed');
+      const blob = await resp.blob();
+      const blobUrl = URL.createObjectURL(blob);
 
-    drawSolarPanels(canvas, panelCount);
+      const img = new Image();
+      img.onload = () => {
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        canvas.style.display = 'block';
+        if (loader) loader.style.display = 'none';
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const panelCount = l.capacity ? Math.round(parseFloat(l.capacity) * 2.5) : 20;
+        drawSolarPanels(canvas, panelCount);
+        URL.revokeObjectURL(blobUrl);
+      };
+      img.onerror = () => { if (loader) loader.innerHTML = '<span style="color:var(--muted);font-size:11px">Satellite image unavailable</span>'; };
+      img.src = blobUrl;
+    } catch(e) {
+      if (loader) loader.innerHTML = '<span style="color:var(--muted);font-size:11px">Could not load satellite image</span>';
+    }
   }
 
   function onRoofError(placeId) {
     const loader = document.getElementById(`loader-${placeId}`);
-    if (loader) loader.innerHTML = '<span style="color:var(--muted);font-size:11px">Satellite image unavailable for this address</span>';
+    if (loader) loader.innerHTML = '<span style="color:var(--muted);font-size:11px">Satellite image unavailable</span>';
   }
 
   function drawSolarPanels(canvas, count) {
@@ -663,7 +679,10 @@ Return ONLY raw JSON. No markdown. Start { end }:
       } catch(e) {
         leads[i] = {...leads[i],state:'done',score:0,tier:'COLD',reasoning:'Error: '+e.message};
       }
-      renderLeads(); updateStats(); await sleep(300);
+      renderLeads(); updateStats();
+      // Load satellite images for any newly qualified HOT/WARM leads
+      loadAllRoofImages();
+      await sleep(300);
     }
 
     setProgress(100, '✅ Complete');
@@ -672,6 +691,7 @@ Return ONLY raw JSON. No markdown. Start { end }:
     document.getElementById('sectionTitle').textContent=`${leads.length} verified businesses — sourced from Google Maps`;
     document.getElementById('exportRow').style.display='flex';
     document.getElementById('exportNote').textContent=`${leads.filter(l=>l.score!==undefined).length} leads ready to export`;
+    loadAllRoofImages();
     done();
   }
 
