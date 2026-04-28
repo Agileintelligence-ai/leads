@@ -128,6 +128,39 @@
   .expand-btn { font-size: 10px; color: var(--muted); cursor: pointer; background: none; border: none; padding: 0; font-family: 'DM Mono', monospace; margin-top: 4px; }
   .expand-btn:hover { color: var(--accent); }
 
+  /* ── Main mode tabs ── */
+  .mode-tabs { display: flex; gap: 0; margin-bottom: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .mode-tab { flex: 1; padding: 14px 10px; text-align: center; cursor: pointer; font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 800; border: none; background: transparent; color: var(--muted); transition: all 0.2s; border-right: 1px solid var(--border); }
+  .mode-tab:last-child { border-right: none; }
+  .mode-tab.active-leads { background: rgba(245,166,35,0.1); color: var(--accent); }
+  .mode-tab.active-buyback { background: rgba(62,207,142,0.1); color: var(--accent2); }
+
+  /* ── Buyback specific ── */
+  .buyback-banner { background: rgba(62,207,142,0.06); border: 1px solid rgba(62,207,142,0.2); border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; font-size: 12px; color: var(--accent2); line-height: 1.7; }
+  .buyback-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .bb-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; animation: fadeUp 0.4s ease; }
+  .bb-card.hot-buy { border-color: rgba(62,207,142,0.45); background: linear-gradient(135deg,var(--surface),rgba(62,207,142,0.05)); }
+  .bb-card.warm-buy { border-color: rgba(245,166,35,0.35); background: linear-gradient(135deg,var(--surface),rgba(245,166,35,0.04)); }
+  .bb-name { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 800; line-height: 1.3; }
+  .bb-addr { font-size: 11px; color: var(--accent2); margin-top: 3px; }
+  .bb-website { font-size: 11px; margin-top: 4px; }
+  .bb-website a { color: var(--accent); text-decoration: none; }
+  .bb-website a:hover { text-decoration: underline; }
+  .bb-body { font-size: 12px; color: #94a3b8; line-height: 1.6; margin: 8px 0; }
+  .bb-metrics { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 8px; }
+  .bb-metric { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 4px 9px; font-size: 11px; font-family: 'DM Mono', monospace; }
+  .bb-metric span { color: var(--muted); }
+  .bb-metric.green { border-color: rgba(62,207,142,0.3); color: var(--accent2); }
+  .bb-metric.gold { border-color: rgba(245,166,35,0.3); color: var(--accent); }
+  .bb-action { margin-top: 8px; padding: 7px 10px; background: rgba(62,207,142,0.07); border-radius: 6px; font-size: 11px; color: var(--accent2); border-left: 2px solid var(--accent2); }
+  .bb-badges { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; flex-shrink: 0; }
+  .bb-badge { font-family: 'DM Mono', monospace; font-size: 10px; padding: 3px 8px; border-radius: 20px; white-space: nowrap; }
+  .bb-hot { background: rgba(62,207,142,0.2); color: var(--accent2); border: 1px solid rgba(62,207,142,0.4); }
+  .bb-warm { background: rgba(245,166,35,0.15); color: var(--accent); border: 1px solid rgba(245,166,35,0.3); }
+  .bb-cold { background: rgba(100,116,139,0.12); color: var(--muted); border: 1px solid rgba(100,116,139,0.2); }
+  .bb-size { background: rgba(167,139,250,0.15); color: var(--purple); border: 1px solid rgba(167,139,250,0.3); }
+  .bb-stats { display: grid; grid-template-columns: repeat(6,1fr); gap: 10px; margin-bottom: 18px; }
+
   .pulse { display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px;font-family:'DM Mono',monospace;padding:8px 0; }
   .dot { width:6px;height:6px;border-radius:50%;background:var(--accent);animation:p 1.2s infinite; }
   .dot:nth-child(2){animation-delay:.2s;} .dot:nth-child(3){animation-delay:.4s;}
@@ -145,8 +178,8 @@
   <div class="header-left">
     <div class="logo">⚡</div>
     <div>
-      <div class="header-title">Solar Lead Qualifier</div>
-      <div class="header-sub">Real businesses from Google Maps, qualified by AI</div>
+      <div class="header-title">Agile Energy — Lead Engine</div>
+      <div class="header-sub">Solar prospects & buyback opportunities</div>
     </div>
   </div>
   <div class="header-tag">Agile Energy Internal Tool</div>
@@ -180,8 +213,16 @@
     </div>
   </div>
 
-  <!-- Controls -->
-  <div class="controls">
+  <!-- Mode Tabs -->
+  <div class="mode-tabs">
+    <button class="mode-tab active-leads" id="tab-leads" onclick="switchMode('leads')">⚡ Solar Lead Finder</button>
+    <button class="mode-tab" id="tab-buyback" onclick="switchMode('buyback')">♻️ Buyback Opportunities</button>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       LEADS MODE
+  ═══════════════════════════════════════════════════════════ -->
+  <div id="leads-panel">
     <div class="tier-tabs">
       <button class="tier-btn active-t1" onclick="setTier(1)" id="t1btn">🏢 Tier 1 — Large</button>
       <button class="tier-btn" onclick="setTier(2)" id="t2btn">🏪 Tier 2 — Small</button>
@@ -274,7 +315,127 @@
     </div>
   </div>
 
-</div>
+  </div><!-- end #leads-panel -->
+
+  <!-- ═══════════════════════════════════════════════════════════
+       BUYBACK MODE
+  ═══════════════════════════════════════════════════════════ -->
+  <div id="buyback-panel" style="display:none">
+
+    <div class="buyback-banner">
+      <strong>♻️ Solar Buyback Finder</strong> — searches for businesses with large existing solar installations (400kW+) that Agile Energy can approach to purchase, refinance or take over. Claude cross-references public records, CEC data, solar registries and news to find and qualify each opportunity.
+    </div>
+
+    <div class="controls">
+      <div class="controls-grid">
+        <div class="ctrl-group">
+          <label>State / Region</label>
+          <select id="bb-region">
+            <optgroup label="Queensland">
+              <option value="Southern Queensland">Southern QLD</option>
+              <option value="South East Queensland">South East QLD</option>
+              <option value="Brisbane Queensland">Brisbane QLD</option>
+              <option value="Gold Coast Queensland">Gold Coast QLD</option>
+              <option value="Sunshine Coast Queensland">Sunshine Coast QLD</option>
+              <option value="Central Queensland">Central QLD</option>
+              <option value="North Queensland">North QLD</option>
+              <option value="Far North Queensland">Far North QLD</option>
+            </optgroup>
+            <optgroup label="New South Wales">
+              <option value="Sydney New South Wales">Sydney NSW</option>
+              <option value="Hunter Valley New South Wales">Hunter Valley NSW</option>
+              <option value="Central Coast New South Wales">Central Coast NSW</option>
+              <option value="Illawarra New South Wales">Illawarra NSW</option>
+              <option value="Western New South Wales">Western NSW</option>
+              <option value="Northern New South Wales">Northern NSW</option>
+            </optgroup>
+            <optgroup label="Victoria">
+              <option value="Melbourne Victoria">Melbourne VIC</option>
+              <option value="Geelong Victoria">Geelong VIC</option>
+              <option value="Western Victoria">Western VIC</option>
+              <option value="Gippsland Victoria">Gippsland VIC</option>
+            </optgroup>
+            <optgroup label="South Australia">
+              <option value="Adelaide South Australia">Adelaide SA</option>
+              <option value="Regional South Australia">Regional SA</option>
+            </optgroup>
+            <optgroup label="Western Australia">
+              <option value="Perth Western Australia">Perth WA</option>
+              <option value="South West Western Australia">South West WA</option>
+              <option value="Pilbara Western Australia">Pilbara WA</option>
+            </optgroup>
+            <optgroup label="Other">
+              <option value="Northern Territory Australia">Northern Territory</option>
+              <option value="Australian Capital Territory">ACT</option>
+              <option value="Tasmania Australia">Tasmania</option>
+            </optgroup>
+          </select>
+          <input type="text" id="bb-region-custom" placeholder="Or type a specific area..." style="margin-top:7px;">
+        </div>
+        <div class="ctrl-group">
+          <label>Min System Size</label>
+          <select id="bb-minsize">
+            <option value="400">400kW+</option>
+            <option value="500">500kW+</option>
+            <option value="750">750kW+</option>
+            <option value="1000">1MW+</option>
+            <option value="2000">2MW+</option>
+          </select>
+        </div>
+        <div class="ctrl-group">
+          <label>Targets to find</label>
+          <select id="bb-count">
+            <option value="10">10 targets (fast)</option>
+            <option value="25" selected>25 targets</option>
+            <option value="50">50 targets</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="run-btn" id="bb-runBtn" onclick="runBuyback()" style="background:linear-gradient(135deg,var(--accent2),#059669);color:#000">
+        ♻️ Find Buyback Opportunities
+      </button>
+      <button class="stop-btn" id="bb-stopBtn" onclick="stopBuyback()" style="display:none;border-color:var(--accent2);color:var(--accent2)">■ Stop</button>
+      <div class="error-msg" id="bb-errorMsg"></div>
+    </div>
+
+    <!-- Buyback Stats -->
+    <div class="bb-stats">
+      <div class="stat-card"><div class="stat-num c-warm" id="bb-sTotal">0</div><div class="stat-label">♻️ Found</div></div>
+      <div class="stat-card"><div class="stat-num c-hot" id="bb-sHot">0</div><div class="stat-label">🔥 HOT</div></div>
+      <div class="stat-card"><div class="stat-num c-warm" id="bb-sWarm">0</div><div class="stat-label">✅ WARM</div></div>
+      <div class="stat-card"><div class="stat-num c-purple" id="bb-sSize">0MW</div><div class="stat-label">Total MW</div></div>
+      <div class="stat-card"><div class="stat-num c-green" id="bb-sWebsites">0</div><div class="stat-label">🌐 Websites</div></div>
+      <div class="stat-card"><div class="stat-num" id="bb-sValue">$0M</div><div class="stat-label">Est. Value</div></div>
+    </div>
+
+    <!-- Buyback Progress -->
+    <div class="progress-wrap" id="bb-progressWrap">
+      <div class="progress-label" id="bb-progressLabel">Searching...</div>
+      <div class="progress-bar"><div class="progress-fill" id="bb-progressFill" style="width:0%;background:linear-gradient(90deg,var(--accent2),#059669)"></div></div>
+    </div>
+    <div class="status-msg" id="bb-statusMsg"></div>
+
+    <!-- Buyback export -->
+    <div class="section-head" id="bb-sectionHead" style="display:none">
+      <div class="section-title" id="bb-sectionTitle">Buyback Targets</div>
+    </div>
+    <div class="export-row" id="bb-exportRow" style="display:none">
+      <button class="export-btn" onclick="exportBuybackCSV()" style="border-color:rgba(62,207,142,0.3);color:var(--accent2)">⬇ Download CSV</button>
+      <button class="export-btn" onclick="exportBuybackXLSX()" style="border-color:rgba(62,207,142,0.3);color:var(--accent2)">⬇ Download Excel (.xlsx)</button>
+      <span class="export-note" id="bb-exportNote"></span>
+    </div>
+
+    <!-- Buyback Results -->
+    <div class="buyback-grid" id="buybackGrid">
+      <div class="empty-state" style="grid-column:1/-1">
+        <div class="icon">♻️</div>
+        <h3>Find solar buyback targets</h3>
+        <p>Select a region and minimum system size. Claude searches public records, CEC data, news and solar registries to find large installed systems that Agile Energy can approach.</p>
+      </div>
+    </div>
+
+  </div><!-- end #buyback-panel -->
 
 <script>
   let currentTier = 1, leads = [], stopFlag = false;
@@ -489,7 +650,8 @@
         }
       }
 
-      // Step 3: Satellite image
+      // Step 3: Satellite image — only proceed if we have coords
+      if (!lat || !lng) throw new Error('Could not determine location coordinates');
       updateLoader(loader, 'Loading satellite image...');
       const resp = await fetch(`/api/satellite?lat=${lat}&lng=${lng}&key=${encodeURIComponent(mapsKey)}`);
       if (!resp.ok) throw new Error('Satellite fetch failed');
@@ -514,7 +676,10 @@
       img.onerror = () => { if (loader) loader.innerHTML = '<span style="color:var(--muted);font-size:11px">Satellite image unavailable</span>'; };
       img.src = blobUrl;
     } catch(e) {
-      if (loader) loader.innerHTML = `<span style="color:var(--muted);font-size:11px">Error: ${e.message}</span>`;
+      console.error('Roof load error for', l.name, ':', e.message);
+      if (loader) loader.innerHTML = `<div style="padding:10px;text-align:center"><div style="color:var(--red);font-size:11px;font-family:'DM Mono',monospace">⚠ ${e.message}</div><div style="color:var(--muted);font-size:10px;margin-top:4px">Check browser console for details</div></div>`;
+      const noteEl = document.getElementById(`roof-note-${l.place_id}`);
+      if (noteEl) noteEl.textContent = '* Could not load satellite view for this address';
     }
   }
 
@@ -820,6 +985,281 @@ Return ONLY raw JSON. No markdown. Start { end }:
     ws2['!cols']=[{wch:26},{wch:30}];
     XLSX.utils.book_append_sheet(wb,ws2,'Summary');
     XLSX.writeFile(wb,`agile-solar-leads-${new Date().toISOString().slice(0,10)}.xlsx`);
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // MODE SWITCHING
+  // ═══════════════════════════════════════════════════════════
+  function switchMode(mode) {
+    const isLeads = mode === 'leads';
+    document.getElementById('leads-panel').style.display = isLeads ? 'block' : 'none';
+    document.getElementById('buyback-panel').style.display = isLeads ? 'none' : 'block';
+    document.getElementById('tab-leads').className = 'mode-tab' + (isLeads ? ' active-leads' : '');
+    document.getElementById('tab-buyback').className = 'mode-tab' + (!isLeads ? ' active-buyback' : '');
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // BUYBACK MODE
+  // ═══════════════════════════════════════════════════════════
+  let bbLeads = [], bbStopFlag = false;
+
+  function getBBRegion() {
+    return document.getElementById('bb-region-custom').value.trim() || document.getElementById('bb-region').value;
+  }
+
+  function setBBProgress(pct, label) {
+    document.getElementById('bb-progressWrap').style.display = 'block';
+    document.getElementById('bb-progressFill').style.width = pct + '%';
+    document.getElementById('bb-progressLabel').textContent = label;
+  }
+
+  function setBBStatus(msg) { document.getElementById('bb-statusMsg').textContent = msg; }
+  function setBBError(msg) { document.getElementById('bb-errorMsg').textContent = msg; }
+
+  function updateBBStats() {
+    const q = bbLeads.filter(l => l.score !== undefined);
+    document.getElementById('bb-sTotal').textContent = bbLeads.length;
+    document.getElementById('bb-sHot').textContent = q.filter(l => l.bbTier === 'HOT').length;
+    document.getElementById('bb-sWarm').textContent = q.filter(l => l.bbTier === 'WARM').length;
+    document.getElementById('bb-sWebsites').textContent = bbLeads.filter(l => l.website).length;
+    const totalMW = q.reduce((s,l) => s + (l.systemMW||0), 0);
+    document.getElementById('bb-sSize').textContent = totalMW > 0 ? totalMW.toFixed(1)+'MW' : '0MW';
+    const totalVal = q.reduce((s,l) => s + (l.estValue||0), 0);
+    document.getElementById('bb-sValue').textContent = totalVal > 0 ? '$'+totalVal.toFixed(1)+'M' : '$0M';
+  }
+
+  function renderBuyback() {
+    const grid = document.getElementById('buybackGrid');
+    if (!bbLeads.length) return;
+    grid.innerHTML = bbLeads.map(renderBBCard).join('');
+  }
+
+  function renderBBCard(l) {
+    if (l.state === 'searching') return `<div class="bb-card"><div class="bb-name">${esc(l.name||'Searching...')}</div><div class="pulse" style="margin-top:8px;opacity:.5"><div class="dot"></div><div class="dot"></div><div class="dot"></div>Qualifying buyback opportunity...</div></div>`;
+
+    const tierCls = l.bbTier==='HOT'?'bb-hot':l.bbTier==='WARM'?'bb-warm':'bb-cold';
+    const cardCls = l.bbTier==='HOT'?'hot-buy':l.bbTier==='WARM'?'warm-buy':'';
+    const websiteHtml = l.website
+      ? `<div class="bb-website">🌐 <a href="${l.website}" target="_blank">${l.website.replace(/^https?:\/\//,'').split('/')[0]}</a></div>`
+      : `<div class="bb-website" style="color:var(--muted)">No website found</div>`;
+
+    return `<div class="bb-card ${cardCls}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px">
+        <div>
+          <div class="bb-name">${esc(l.name)}</div>
+          <div class="bb-addr">📍 ${esc(l.address||l.location||'')}</div>
+          ${websiteHtml}
+          ${l.rating ? `<div style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:3px">⭐ ${l.rating} (${l.reviews||0} reviews)</div>` : ''}
+        </div>
+        <div class="bb-badges">
+          <span class="bb-badge ${tierCls}">${l.bbTier}</span>
+          ${l.systemSize ? `<span class="bb-badge bb-size">⚡ ${l.systemSize}</span>` : ''}
+          <span class="bb-badge" style="background:rgba(62,207,142,0.1);color:var(--accent2);border:1px solid rgba(62,207,142,0.25)">♻️ Buyback</span>
+        </div>
+      </div>
+      <div class="bb-body">${esc(l.reasoning||'')}</div>
+      <div class="bb-metrics">
+        ${l.systemSize ? `<div class="bb-metric green"><span>System: </span>${l.systemSize}</div>` : ''}
+        ${l.installYear ? `<div class="bb-metric"><span>Installed: </span>${l.installYear}</div>` : ''}
+        ${l.estValue ? `<div class="bb-metric gold"><span>Est. Value: </span>$${l.estValue}M</div>` : ''}
+        ${l.annualOutput ? `<div class="bb-metric"><span>Output: </span>${l.annualOutput}</div>` : ''}
+        ${l.score ? `<div class="bb-metric"><span>Score: </span>${l.score}/100</div>` : ''}
+        ${l.industry ? `<div class="bb-metric"><span>Sector: </span>${l.industry}</div>` : ''}
+      </div>
+      ${l.nextStep ? `<div class="bb-action">→ ${esc(l.nextStep)}</div>` : ''}
+    </div>`;
+  }
+
+  async function runBuyback() {
+    const apiKey = document.getElementById('apiKey').value.trim();
+    if (!apiKey.startsWith('sk-ant-')) { setBBError('⚠️ Please enter your Anthropic API key in the Keys panel above.'); return; }
+
+    setBBError(''); bbLeads=[]; bbStopFlag=false;
+    document.getElementById('bb-runBtn').disabled = true;
+    document.getElementById('bb-stopBtn').style.display = 'block';
+    document.getElementById('bb-sectionHead').style.display = 'none';
+    document.getElementById('bb-exportRow').style.display = 'none';
+    document.getElementById('buybackGrid').innerHTML = '';
+
+    const region = getBBRegion();
+    const minSize = document.getElementById('bb-minsize').value;
+    const targetCount = parseInt(document.getElementById('bb-count').value);
+    const minSizeLabel = minSize >= 1000 ? (minSize/1000)+'MW' : minSize+'kW';
+
+    setBBProgress(5, `Searching for ${minSizeLabel}+ solar systems in ${region}...`);
+
+    // Run multiple Claude searches in batches to reach target count
+    const batchSize = 10;
+    const batches = Math.ceil(targetCount / batchSize);
+    let searchRound = 1;
+
+    for (let batch = 0; batch < batches && !bbStopFlag; batch++) {
+      setBBProgress(5 + Math.round((batch/batches)*40), `Batch ${batch+1}/${batches} — Searching for large solar systems...`);
+
+      const searchPrompt = `You are a solar asset researcher for Agile Energy Australia. Find ${batchSize} real businesses or facilities in ${region} that have EXISTING large-scale solar installations of ${minSize}kW or more.
+
+Search the web, CEC approved solar list, news articles, council records, solar farm databases, and business directories.
+
+Focus on: commercial buildings, industrial facilities, shopping centres, schools, hospitals, councils, farms, warehouses, cold storage, aged care groups — any sector.
+
+IMPORTANT: Only include systems that are ${minSize}kW (${minSizeLabel}) or larger. These are EXISTING installed systems — Agile Energy wants to BUY BACK or refinance them.
+
+${batch > 0 ? `This is search round ${batch+1} — find DIFFERENT businesses not already listed.` : ''}
+
+Return ONLY a raw JSON array. No markdown. Start [ end ]:
+[{
+  "name": "Business Name",
+  "address": "Full street address, Suburb, State",
+  "website": "https://... or null",
+  "industry": "sector e.g. Cold Storage",
+  "systemSize": "e.g. 500kW or 1.2MW",
+  "installYear": "e.g. 2019 or null",
+  "annualOutput": "e.g. 650MWh/yr or null"
+}]
+
+Return exactly ${batchSize} real results with verified system sizes of ${minSize}kW+.`;
+
+      try {
+        const text = await callClaude(apiKey, searchPrompt);
+        const arr = extractJSON(text, true);
+        if (arr?.length) {
+          const newLeads = arr.map(l => ({...l, state:'searching', id: Math.random().toString(36).slice(2)}));
+          bbLeads.push(...newLeads);
+          document.getElementById('bb-sectionHead').style.display = 'flex';
+          document.getElementById('bb-sectionTitle').textContent = `${bbLeads.length} large solar systems found`;
+          renderBuyback(); updateBBStats();
+        }
+      } catch(e) {
+        setBBError('Search error: ' + e.message);
+      }
+      searchRound++;
+    }
+
+    if (!bbLeads.length) { setBBError('⚠️ No results found. Try a different region or lower minimum size.'); bbDone(); return; }
+
+    // Now qualify each one
+    setBBProgress(45, `Qualifying ${bbLeads.length} buyback opportunities...`);
+
+    for (let i=0; i<bbLeads.length && !bbStopFlag; i++) {
+      setBBProgress(45 + Math.round((i/bbLeads.length)*53), `Qualifying ${i+1}/${bbLeads.length}: ${bbLeads[i].name}`);
+
+      const l = bbLeads[i];
+      const qPrompt = `You are a solar asset acquisitions analyst for Agile Energy Australia. Evaluate this business as a SOLAR BUYBACK target — Agile Energy wants to purchase or refinance their existing solar system.
+
+Business: ${l.name}
+Address: ${l.address}
+Website: ${l.website||'unknown'}
+Sector: ${l.industry||'unknown'}
+Known system size: ${l.systemSize||'unknown'}
+Install year: ${l.installYear||'unknown'}
+
+Search the web for more details. Determine:
+1. Confirm the system exists and approximate size (kW or MW)?
+2. Estimated system age and remaining useful life?
+3. Estimated current market value of the system ($AUD millions)?
+4. How attractive is this as a buyback target? (consider system age, size, owner type, finance situation)
+5. Buyback score 0-100 (100 = perfect: large system, aging finance, motivated owner)?
+6. Best approach for Agile Energy to initiate contact?
+
+Return ONLY raw JSON. No markdown. Start { end }:
+{"bbTier":"HOT|WARM|COLD","score":number,"systemSize":"confirmed size","systemMW":number_in_MW,"installYear":"year or est.","estValue":number_in_millions_AUD,"annualOutput":"MWh/yr","industry":"sector","reasoning":"2-3 sentences on buyback attractiveness","nextStep":"specific contact approach","website":"${l.website||'null'}"}`;
+
+      try {
+        const qText = await callClaude(apiKey, qPrompt);
+        const q = extractJSON(qText, false);
+        if (q) {
+          bbLeads[i] = {...l, ...q, state:'done'};
+          // Fetch website from Maps if we have a place search result
+          if (!bbLeads[i].website && document.getElementById('mapsKey').value.startsWith('AIza')) {
+            try {
+              const mapsKey = document.getElementById('mapsKey').value.trim();
+              const sr = await fetch(`/api/places/search?query=${encodeURIComponent(l.name+' '+l.address)}&key=${mapsKey}`);
+              const sd = await sr.json();
+              if (sd.results?.[0]) {
+                bbLeads[i].place_id = sd.results[0].place_id;
+                bbLeads[i].rating = sd.results[0].rating;
+                bbLeads[i].reviews = sd.results[0].reviews;
+                const dr = await fetch(`/api/places/details?place_id=${sd.results[0].place_id}&key=${mapsKey}`);
+                const dd = await dr.json();
+                if (dd.result?.website) bbLeads[i].website = dd.result.website;
+              }
+            } catch(e) {}
+          }
+        } else {
+          bbLeads[i] = {...l, state:'done', bbTier:'COLD', score:0, reasoning:'Could not qualify.'};
+        }
+      } catch(e) {
+        bbLeads[i] = {...l, state:'done', bbTier:'COLD', score:0, reasoning:'Error: '+e.message};
+      }
+
+      renderBuyback(); updateBBStats(); await sleep(400);
+    }
+
+    setBBProgress(100, '✅ Complete');
+    const hot = bbLeads.filter(l=>l.bbTier==='HOT').length;
+    const warm = bbLeads.filter(l=>l.bbTier==='WARM').length;
+    const totalMW = bbLeads.filter(l=>l.systemMW).reduce((s,l)=>s+(l.systemMW||0),0);
+    setBBStatus(`✅ Done — ${hot} HOT + ${warm} WARM buyback targets found. ${totalMW.toFixed(1)}MW total identified.`);
+    document.getElementById('bb-sectionTitle').textContent = `${bbLeads.length} buyback opportunities`;
+    document.getElementById('bb-exportRow').style.display = 'flex';
+    document.getElementById('bb-exportNote').textContent = `${bbLeads.filter(l=>l.score!==undefined).length} targets ready to export`;
+    bbDone();
+  }
+
+  function stopBuyback() { bbStopFlag=true; setBBStatus('⏹ Stopped.'); if(bbLeads.some(l=>l.score)){document.getElementById('bb-exportRow').style.display='flex';} bbDone(); }
+  function bbDone() { document.getElementById('bb-runBtn').disabled=false; document.getElementById('bb-stopBtn').style.display='none'; }
+
+  function getBBRows() {
+    return bbLeads.filter(l=>l.bbTier).map(l=>({
+      'Business Name': l.name,
+      'Address': l.address||'',
+      'Website': l.website||'',
+      'Sector': l.industry||'',
+      'System Size': l.systemSize||'',
+      'System MW': l.systemMW||'',
+      'Install Year': l.installYear||'',
+      'Annual Output': l.annualOutput||'',
+      'Est. Value ($M AUD)': l.estValue||'',
+      'Buyback Rating': l.bbTier||'',
+      'Score (0-100)': l.score||0,
+      'Analysis': l.reasoning||'',
+      'Recommended Approach': l.nextStep||'',
+      'Region': getBBRegion(),
+      'Min Size Filter': document.getElementById('bb-minsize').value+'kW',
+      'Date Run': new Date().toLocaleDateString('en-AU')
+    }));
+  }
+
+  function exportBuybackCSV() {
+    const rows = getBBRows(); if(!rows.length){alert('No results yet.');return;}
+    const headers = Object.keys(rows[0]);
+    const csv = '\uFEFF'+[headers,...rows.map(r=>headers.map(h=>`"${String(r[h]).replace(/"/g,'""')}"`))].map(r=>r.join(',')).join('\r\n');
+    const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download=`agile-buyback-${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }
+
+  function exportBuybackXLSX() {
+    const rows = getBBRows(); if(!rows.length){alert('No results yet.');return;}
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [{wch:32},{wch:44},{wch:30},{wch:18},{wch:14},{wch:10},{wch:12},{wch:16},{wch:18},{wch:14},{wch:12},{wch:50},{wch:44},{wch:22},{wch:14},{wch:14}];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Buyback Targets');
+    const hot=rows.filter(r=>r['Buyback Rating']==='HOT').length, warm=rows.filter(r=>r['Buyback Rating']==='WARM').length;
+    const totalMW = rows.reduce((s,r)=>s+(parseFloat(r['System MW'])||0),0);
+    const ws2=XLSX.utils.aoa_to_sheet([
+      ['AGILE ENERGY — SOLAR BUYBACK REPORT',''],['',''],
+      ['Date',new Date().toLocaleDateString('en-AU')],
+      ['Region',getBBRegion()],
+      ['Min System Size',document.getElementById('bb-minsize').value+'kW+'],['',''],
+      ['Total Targets',rows.length],['🔥 HOT',hot],['✅ WARM',warm],
+      ['Total MW Identified',totalMW.toFixed(1)+'MW'],
+      ['Est. Total Portfolio Value','$'+rows.reduce((s,r)=>s+(parseFloat(r['Est. Value ($M AUD)'])||0),0).toFixed(1)+'M']
+    ]);
+    ws2['!cols']=[{wch:28},{wch:30}];
+    XLSX.utils.book_append_sheet(wb,ws2,'Summary');
+    XLSX.writeFile(wb,`agile-buyback-${new Date().toISOString().slice(0,10)}.xlsx`);
   }
 </script>
 </body>
