@@ -128,6 +128,12 @@
   .expand-btn { font-size: 10px; color: var(--muted); cursor: pointer; background: none; border: none; padding: 0; font-family: 'DM Mono', monospace; margin-top: 4px; }
   .expand-btn:hover { color: var(--accent); }
 
+  /* Tags for multi-select */
+  .tag-chip { display:inline-flex; align-items:center; gap:5px; background:rgba(245,166,35,0.12); border:1px solid rgba(245,166,35,0.3); border-radius:20px; padding:3px 10px; font-size:11px; color:var(--accent); font-family:'DM Mono',monospace; }
+  .tag-chip.ind { background:rgba(62,207,142,0.1); border-color:rgba(62,207,142,0.3); color:var(--accent2); }
+  .tag-chip button { background:none; border:none; color:inherit; cursor:pointer; font-size:13px; line-height:1; padding:0; opacity:0.7; }
+  .tag-chip button:hover { opacity:1; }
+
   /* ── Main mode tabs ── */
   .mode-tabs { display: flex; gap: 0; margin-bottom: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
   .mode-tab { flex: 1; padding: 14px 10px; text-align: center; cursor: pointer; font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 800; border: none; background: transparent; color: var(--muted); transition: all 0.2s; border-right: 1px solid var(--border); }
@@ -223,61 +229,70 @@
        LEADS MODE
   ═══════════════════════════════════════════════════════════ -->
   <div id="leads-panel">
-    <div class="tier-tabs">
-      <button class="tier-btn active-t1" onclick="setTier(1)" id="t1btn">🏢 Tier 1 — Large</button>
-      <button class="tier-btn" onclick="setTier(2)" id="t2btn">🏪 Tier 2 — Small</button>
-      <button class="tier-btn" onclick="setTier(4)" id="t4btn">🏢🏪 Mix Tier 1+2</button>
-      <button class="tier-btn" onclick="setTier(3)" id="t3btn">⛽ Tier 3 — Diesel</button>
-    </div>
+    <div class="controls" style="margin-bottom:18px">
+      <div class="tier-tabs">
+        <button class="tier-btn active-t1" onclick="setTier(1)" id="t1btn">🏢 Tier 1 — Large</button>
+        <button class="tier-btn" onclick="setTier(2)" id="t2btn">🏪 Tier 2 — Small</button>
+        <button class="tier-btn" onclick="setTier(4)" id="t4btn">🏢🏪 Mix Tier 1+2</button>
+        <button class="tier-btn" onclick="setTier(3)" id="t3btn">⛽ Tier 3 — Diesel</button>
+      </div>
 
-    <div class="controls-grid">
-      <div class="ctrl-group">
-        <label>Suburb / Region</label>
-        <select id="suburb">
-          <option value="">-- Select --</option>
-          <optgroup label="Metro — Sydney"><option>Parramatta NSW</option><option>Blacktown NSW</option><option>Penrith NSW</option><option>Liverpool NSW</option><option>Campbelltown NSW</option><option>Bankstown NSW</option><option>Chatswood NSW</option><option>Hornsby NSW</option></optgroup>
-          <optgroup label="Metro — Melbourne"><option>Dandenong VIC</option><option>Frankston VIC</option><option>Sunshine VIC</option><option>Werribee VIC</option><option>Cranbourne VIC</option><option>Ringwood VIC</option></optgroup>
-          <optgroup label="Metro — Brisbane"><option>Logan QLD</option><option>Ipswich QLD</option><option>Caboolture QLD</option><option>Redcliffe QLD</option><option>Springwood QLD</option><option>Acacia Ridge QLD</option></optgroup>
-          <optgroup label="Metro — Other"><option>Elizabeth SA</option><option>Salisbury SA</option><option>Rockingham WA</option><option>Midland WA</option><option>Belmont WA</option></optgroup>
-          <optgroup label="Regional"><option>Newcastle NSW</option><option>Wollongong NSW</option><option>Albury NSW</option><option>Orange NSW</option><option>Dubbo NSW</option><option>Wagga Wagga NSW</option><option>Ballarat VIC</option><option>Bendigo VIC</option><option>Toowoomba QLD</option><option>Townsville QLD</option><option>Cairns QLD</option><option>Rockhampton QLD</option></optgroup>
-          <optgroup label="Remote / Tier 3"><option>Broken Hill NSW</option><option>Mount Isa QLD</option><option>Alice Springs NT</option><option>Darwin NT</option><option>Kalgoorlie WA</option><option>Port Hedland WA</option><option>Karratha WA</option><option>Broome WA</option></optgroup>
-        </select>
-        <input type="text" id="suburbCustom" placeholder="Or type any suburb..." style="margin-top:7px;">
-      </div>
-      <div class="ctrl-group">
-        <label>Industry</label>
-        <select id="industry">
-          <option value="aged care facility">Aged Care</option>
-          <option value="childcare centre">Childcare</option>
-          <option value="school">Schools & Education</option>
-          <option value="medical clinic">Medical & Dental</option>
-          <option value="retail store">Retail</option>
-          <option value="warehouse industrial">Industrial & Warehousing</option>
-          <option value="restaurant cafe">Hospitality & Restaurants</option>
-          <option value="gym fitness centre">Gyms & Fitness</option>
-          <option value="church community hall">Churches & Community</option>
-          <option value="caravan park">Caravan Parks</option>
-          <option value="farm agriculture">Agriculture & Farming</option>
-          <option value="mining">Mining & Resources</option>
-          <option value="cold storage logistics">Cold Storage & Logistics</option>
-          <option value="supermarket">Supermarkets</option>
-          <option value="service station">Service Stations</option>
-        </select>
-      </div>
-      <div class="ctrl-group">
-        <label>Facilities to find</label>
-        <select id="count">
-          <option value="10">10 facilities</option>
-          <option value="15">15 facilities</option>
-          <option value="20">20 facilities</option>
-        </select>
-      </div>
-    </div>
+      <div class="controls-grid">
+        <div class="ctrl-group">
+          <label>Suburbs / Regions <span style="color:var(--accent);font-size:10px">(pick multiple)</span></label>
+          <select id="suburbPicker" onchange="addSuburb(this.value); this.value=''">
+            <option value="">+ Add a suburb...</option>
+            <optgroup label="Metro — Sydney"><option>Parramatta NSW</option><option>Blacktown NSW</option><option>Penrith NSW</option><option>Liverpool NSW</option><option>Campbelltown NSW</option><option>Bankstown NSW</option><option>Chatswood NSW</option><option>Hornsby NSW</option></optgroup>
+            <optgroup label="Metro — Melbourne"><option>Dandenong VIC</option><option>Frankston VIC</option><option>Sunshine VIC</option><option>Werribee VIC</option><option>Cranbourne VIC</option><option>Ringwood VIC</option></optgroup>
+            <optgroup label="Metro — Brisbane"><option>Logan QLD</option><option>Ipswich QLD</option><option>Caboolture QLD</option><option>Redcliffe QLD</option><option>Springwood QLD</option><option>Acacia Ridge QLD</option></optgroup>
+            <optgroup label="Metro — Other"><option>Elizabeth SA</option><option>Salisbury SA</option><option>Rockingham WA</option><option>Midland WA</option><option>Belmont WA</option></optgroup>
+            <optgroup label="Regional"><option>Newcastle NSW</option><option>Wollongong NSW</option><option>Albury NSW</option><option>Orange NSW</option><option>Dubbo NSW</option><option>Wagga Wagga NSW</option><option>Ballarat VIC</option><option>Bendigo VIC</option><option>Toowoomba QLD</option><option>Townsville QLD</option><option>Cairns QLD</option><option>Rockhampton QLD</option></optgroup>
+            <optgroup label="Remote / Tier 3"><option>Broken Hill NSW</option><option>Mount Isa QLD</option><option>Alice Springs NT</option><option>Darwin NT</option><option>Kalgoorlie WA</option><option>Port Hedland WA</option><option>Karratha WA</option><option>Broome WA</option></optgroup>
+          </select>
+          <input type="text" id="suburbCustomInput" placeholder="Or type & press Enter..." style="margin-top:6px;" onkeydown="if(event.key==='Enter'){addSuburb(this.value);this.value='';}">
+          <div id="suburbTags" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;min-height:26px;"></div>
+        </div>
 
-    <button class="run-btn" id="runBtn" onclick="runSearch()">⚡ Find Real Businesses & Qualify</button>
-    <button class="stop-btn" id="stopBtn" onclick="stopSearch()" style="display:none">■ Stop</button>
-    <div class="error-msg" id="errorMsg"></div>
-  </div>
+        <div class="ctrl-group">
+          <label>Industries <span style="color:var(--accent);font-size:10px">(pick multiple)</span></label>
+          <select id="industryPicker" onchange="addIndustry(this.value,this.options[this.selectedIndex].text); this.value=''">
+            <option value="">+ Add an industry...</option>
+            <option value="aged care facility">Aged Care</option>
+            <option value="childcare centre">Childcare</option>
+            <option value="school">Schools & Education</option>
+            <option value="medical clinic">Medical & Dental</option>
+            <option value="retail store">Retail</option>
+            <option value="warehouse industrial">Industrial & Warehousing</option>
+            <option value="restaurant cafe">Hospitality & Restaurants</option>
+            <option value="gym fitness centre">Gyms & Fitness</option>
+            <option value="church community hall">Churches & Community</option>
+            <option value="caravan park">Caravan Parks</option>
+            <option value="farm agriculture">Agriculture & Farming</option>
+            <option value="mining">Mining & Resources</option>
+            <option value="cold storage logistics">Cold Storage & Logistics</option>
+            <option value="supermarket">Supermarkets</option>
+            <option value="service station">Service Stations</option>
+          </select>
+          <div id="industryTags" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;min-height:26px;"></div>
+        </div>
+
+        <div class="ctrl-group">
+          <label>Facilities per suburb/industry</label>
+          <select id="count" onchange="updateTotalEstimate()">
+            <option value="5">5 per combination</option>
+            <option value="10" selected>10 per combination</option>
+            <option value="15">15 per combination</option>
+            <option value="20">20 per combination</option>
+            <option value="25">25 per combination</option>
+          </select>
+          <div style="font-size:10px;color:var(--muted);margin-top:8px;font-family:'DM Mono',monospace" id="totalEstimate">Select suburbs + industries to see total estimate</div>
+        </div>
+      </div>
+
+      <button class="run-btn" id="runBtn" onclick="runSearch()">⚡ Find Real Businesses & Qualify</button>
+      <button class="stop-btn" id="stopBtn" onclick="stopSearch()" style="display:none">■ Stop</button>
+      <div class="error-msg" id="errorMsg"></div>
+    </div>
 
   <!-- Stats -->
   <div class="stats-bar">
@@ -478,9 +493,51 @@
     });
   }
 
-  function getSuburb() { return document.getElementById('suburbCustom').value.trim() || document.getElementById('suburb').value || 'Brisbane QLD'; }
-  function getIndustryKey() { return document.getElementById('industry').value; }
-  function getIndustryLabel() { return document.getElementById('industry').options[document.getElementById('industry').selectedIndex].text; }
+  // Multi-select state
+  let selectedSuburbs = [];   // [{label:'Parramatta NSW'}]
+  let selectedIndustries = []; // [{key:'aged care facility', label:'Aged Care'}]
+
+  function addSuburb(val) {
+    val = val.trim();
+    if (!val || selectedSuburbs.find(s=>s.label===val)) return;
+    selectedSuburbs.push({label:val});
+    renderSuburbTags();
+    updateTotalEstimate();
+  }
+  function removeSuburb(i) { selectedSuburbs.splice(i,1); renderSuburbTags(); updateTotalEstimate(); }
+  function renderSuburbTags() {
+    document.getElementById('suburbTags').innerHTML = selectedSuburbs.map((s,i)=>
+      `<span class="tag-chip">${s.label}<button onclick="removeSuburb(${i})">×</button></span>`).join('');
+  }
+
+  function addIndustry(key, label) {
+    if (!key || selectedIndustries.find(x=>x.key===key)) return;
+    selectedIndustries.push({key,label});
+    renderIndustryTags();
+    updateTotalEstimate();
+  }
+  function removeIndustry(i) { selectedIndustries.splice(i,1); renderIndustryTags(); updateTotalEstimate(); }
+  function renderIndustryTags() {
+    document.getElementById('industryTags').innerHTML = selectedIndustries.map((x,i)=>
+      `<span class="tag-chip ind">${x.label}<button onclick="removeIndustry(${i})">×</button></span>`).join('');
+  }
+
+  function updateTotalEstimate() {
+    const perCombo = parseInt(document.getElementById('count')?.value||10);
+    const combos = Math.max(selectedSuburbs.length,1) * Math.max(selectedIndustries.length,1);
+    const total = combos * perCombo;
+    const el = document.getElementById('totalEstimate');
+    if (el) el.textContent = selectedSuburbs.length && selectedIndustries.length
+      ? `${selectedSuburbs.length} suburb${selectedSuburbs.length>1?'s':''} × ${selectedIndustries.length} industr${selectedIndustries.length>1?'ies':'y'} × ${perCombo} = ~${total} total leads`
+      : 'Select suburbs + industries to see total estimate';
+  }
+
+  function getSuburbs() { return selectedSuburbs.length ? selectedSuburbs.map(s=>s.label) : ['Sydney NSW']; }
+  function getIndustries() { return selectedIndustries.length ? selectedIndustries : [{key:'warehouse industrial',label:'Industrial & Warehousing'}]; }
+  // Legacy single-value helpers used elsewhere
+  function getSuburb() { return getSuburbs()[0]; }
+  function getIndustryKey() { return getIndustries()[0].key; }
+  function getIndustryLabel() { return getIndustries()[0].label; }
   function tierLabel() { return {1:'Tier 1 — Large',2:'Tier 2 — Small',3:'Tier 3 — Diesel',4:'Mix Tier 1+2'}[currentTier]; }
 
   function setStatus(msg) { document.getElementById('statusMsg').textContent = msg; }
@@ -523,7 +580,7 @@
       if (l.batterySize) metrics += `<div class="metric" style="border-color:rgba(167,139,250,.3)"><span>Battery: </span>${l.batterySize}</div>`;
     }
 
-    return `<div class="lead-card ${cardClass}" id="card-${l.place_id}">
+    return `<div class="lead-card ${cardClass}">
       <div class="lead-header">
         <div>
           <div class="lead-name">${esc(l.name)}</div>
@@ -534,42 +591,12 @@
           <span class="badge ${tierCls}">${l.hasSolar?'☀️ Has Solar':l.tier}</span>
           <span class="badge ${l.hasSolar?'b-hassolar':'b-nosolar'}">${l.hasSolar?'Solar Present':'No Solar'}</span>
           <span class="badge b-maps">✓ Maps</span>
+          ${l.suburb ? `<span class="badge" style="background:rgba(100,116,139,0.1);color:var(--muted);border:1px solid rgba(100,116,139,0.2)">${esc(l.suburb)}</span>` : ''}
         </div>
       </div>
       <div class="lead-body">${esc(l.reasoning||'')}</div>
       <div class="lead-metrics">${metrics}</div>
       ${l.nextStep?`<div class="lead-action">→ ${esc(l.nextStep)}</div>`:''}
-      ${buildRoofSection(l)}
-    </div>`;
-  }
-
-  function buildRoofSection(l) {
-    if (l.hasSolar) return '';
-    if (l.tier !== 'HOT' && l.tier !== 'WARM') return '';
-    if (!l.website) return '';
-
-    const mapsKey = document.getElementById('mapsKey').value.trim();
-    if (!mapsKey.startsWith('AIza')) return '';
-
-    const panelCount = Math.min(Math.round(parseCapacity(l.capacity) / 0.4), 50);
-    const systemSize = l.capacity || '~50kW';
-    const annualSavings = '$' + ((l.savings||0)/1000).toFixed(0) + 'k';
-
-    return `<div class="roof-section">
-      <div class="roof-label">☀️ Satellite Roof View — Google Solar API layout</div>
-      <div class="roof-img-wrap" id="roof-${l.place_id}">
-        <div class="roof-loading" id="loader-${l.place_id}">
-          <div class="pulse"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
-          <span>Fetching Solar API data...</span>
-        </div>
-        <canvas id="canvas-${l.place_id}" style="width:100%;height:100%;display:none;"></canvas>
-      </div>
-      <div class="roof-stats" id="roof-stats-${l.place_id}">
-        <div class="roof-stat">☀️ ${systemSize} system</div>
-        <div class="roof-stat">🔲 ~${panelCount} panels</div>
-        <div class="roof-stat">💰 ${annualSavings}/yr savings</div>
-      </div>
-      <div style="font-size:10px;color:var(--muted);margin-top:5px;font-family:'DM Mono',monospace" id="roof-note-${l.place_id}">* Fetching real roof data from Google Solar API...</div>
     </div>`;
   }
 
@@ -842,8 +869,13 @@
   async function runSearch() {
     const apiKey = document.getElementById('apiKey').value.trim();
     const mapsKey = document.getElementById('mapsKey').value.trim();
-    if (!apiKey.startsWith('sk-ant-')) { setError('⚠️ Please enter your Anthropic API key in the Keys panel above.'); return; }
-    if (!mapsKey.startsWith('AIza')) { setError('⚠️ Google Maps key is required. Add it in the Keys panel above.'); return; }
+    if (!apiKey.startsWith('sk-ant-')) { setError('⚠️ Please enter your Anthropic API key.'); return; }
+    if (!mapsKey.startsWith('AIza')) { setError('⚠️ Google Maps key is required.'); return; }
+
+    const suburbs = getSuburbs();
+    const industries = getIndustries();
+    if (!suburbs.length) { setError('⚠️ Add at least one suburb.'); return; }
+    if (!industries.length) { setError('⚠️ Add at least one industry.'); return; }
 
     setError(''); leads=[]; stopFlag=false;
     document.getElementById('runBtn').disabled=true;
@@ -852,68 +884,67 @@
     document.getElementById('sectionHead').style.display='none';
     document.getElementById('exportRow').style.display='none';
 
-    const suburb=getSuburb(), industryKey=getIndustryKey(), industryLabel=getIndustryLabel(), count=parseInt(document.getElementById('count').value);
+    const countPerCombo = parseInt(document.getElementById('count').value);
+    const seenPlaceIds = new Set();
+    const tierDesc = {1:'large chain or corporate operator',2:'small independent owner-operated business',3:'remote/diesel-dependent facility',4:'business (mix of large and small operators)'}[currentTier];
+    const dieselExtra = currentTier===3 ? '"dieselSavings":number,"batterySize":"e.g. 200kWh",' : '';
 
-    setProgress(5, `Step 1/3 — Searching Google Maps for ${industryLabel} in ${suburb}...`);
-    let places;
-    try { places = await fetchRealBusinesses(suburb, industryKey, count, mapsKey); }
-    catch(e) { setError('⚠️ Google Maps search failed: ' + e.message); done(); return; }
+    // Build all suburb × industry combinations
+    const combos = [];
+    for (const suburb of suburbs) for (const ind of industries) combos.push({suburb, ind});
+    const totalCombos = combos.length;
 
-    if (!places.length) { setError('⚠️ No businesses found. Try a different suburb or industry.'); done(); return; }
-
-    setProgress(20, `Step 2/3 — Getting website details for ${places.length} businesses...`);
-    leads = places.map(p => ({ ...p, state: 'waiting' }));
+    setProgress(2, `Searching ${totalCombos} suburb×industry combinations...`);
     document.getElementById('sectionHead').style.display='flex';
-    document.getElementById('sectionTitle').textContent=`${leads.length} real businesses found`;
-    renderLeads(); updateStats();
 
-    for (let i=0; i<leads.length; i++) {
-      if (stopFlag) break;
+    // Phase 1: Fetch all businesses across all combos
+    for (let ci=0; ci<combos.length && !stopFlag; ci++) {
+      const {suburb, ind} = combos[ci];
+      setProgress(2 + Math.round((ci/totalCombos)*35), `Finding ${ind.label} in ${suburb}... (${ci+1}/${totalCombos})`);
+
+      try {
+        const places = await fetchRealBusinesses(suburb.label, ind.key, countPerCombo, mapsKey);
+        for (const p of places) {
+          if (!seenPlaceIds.has(p.place_id)) {
+            seenPlaceIds.add(p.place_id);
+            leads.push({...p, state:'waiting', suburb: suburb.label, industryLabel: ind.label});
+          }
+        }
+        document.getElementById('sectionTitle').textContent=`${leads.length} businesses found (searching...)`;
+        renderLeads(); updateStats();
+      } catch(e) { console.error('Search error:', e.message); }
+      await sleep(300);
+    }
+
+    if (!leads.length) { setError('⚠️ No businesses found. Try different suburbs or industries.'); done(); return; }
+
+    // Phase 2: Get website details for all leads
+    setProgress(38, `Getting website details for ${leads.length} businesses...`);
+    for (let i=0; i<leads.length && !stopFlag; i++) {
       if (leads[i].place_id) {
         const details = await fetchPlaceDetails(leads[i].place_id, mapsKey);
         leads[i].website = details.website || null;
         leads[i].phone = details.formatted_phone_number || null;
-        // Cache precise coordinates from place details
-        if (details.geometry?.location) {
-          leads[i].lat = details.geometry.location.lat;
-          leads[i].lng = details.geometry.location.lng;
-        }
       }
-      setProgress(20 + Math.round((i/leads.length)*22), `Details ${i+1}/${leads.length}: ${leads[i].name}`);
-      renderLeads(); updateStats();
-      await sleep(150);
+      setProgress(38 + Math.round((i/leads.length)*12), `Details ${i+1}/${leads.length}`);
+      if (i % 5 === 0) { renderLeads(); updateStats(); }
+      await sleep(100);
     }
+    renderLeads(); updateStats();
 
-    setProgress(44, `Step 3/3 — Qualifying ${leads.length} leads for solar potential...`);
-
-    const tierDesc = {1:'large chain or corporate operator',2:'small independent owner-operated business',3:'remote/diesel-dependent facility',4:'business (mix of large and small operators)'}[currentTier];
-    const dieselExtra = currentTier===3 ? '"dieselSavings":number,"batterySize":"e.g. 200kWh",' : '';
-
-    for (let i=0; i<leads.length; i++) {
-      if (stopFlag) break;
+    // Phase 3: Qualify each lead
+    setProgress(50, `Qualifying ${leads.length} leads...`);
+    for (let i=0; i<leads.length && !stopFlag; i++) {
       leads[i].state='qualifying'; renderLeads();
-      setProgress(44 + Math.round((i/leads.length)*54), `Qualifying ${i+1}/${leads.length}: ${leads[i].name}`);
+      setProgress(50 + Math.round((i/leads.length)*48), `Qualifying ${i+1}/${leads.length}: ${leads[i].name}`);
 
-      const websiteHint = leads[i].website ? `Website: ${leads[i].website}` : 'No website found.';
-      const qPrompt = `You are a solar sales analyst for Agile Energy Australia. Qualify this ${industryLabel} business as a solar lead.
-
-Business: ${leads[i].name}
-Address: ${leads[i].address}
+      const websiteHint = leads[i].website ? `Website: ${leads[i].website}` : '';
+      const qPrompt = `Solar analyst for Agile Energy Australia. Qualify this ${leads[i].industryLabel||'business'} as a solar lead.
+Business: ${leads[i].name}, ${leads[i].address}
 ${websiteHint}
-Google Rating: ${leads[i].rating||'N/A'} (${leads[i].reviews||0} reviews)
 Type: ${tierDesc}
-
-Search the web for info on this business. Determine:
-1. Do they already have solar panels?
-2. Estimated roof/facility size?
-3. Recommended solar system size (kW)?
-4. Estimated annual electricity savings ($AUD)?
-5. Lead score 0-100?
-6. Best next action for Agile Energy sales team?
-${currentTier===3?'7. Estimated annual diesel savings from solar+battery?':''}
-
-Return ONLY raw JSON. No markdown. Start { end }:
-{"hasSolar":bool,"tier":"HOT|WARM|COLD","score":number,"roofSize":"sqm","capacity":"kW","savings":number,${dieselExtra}"reasoning":"2-3 sentences","nextStep":"action"}`;
+JSON only. No markdown. Start { end }:
+{"hasSolar":bool,"tier":"HOT|WARM|COLD","score":0-100,"roofSize":"sqm","capacity":"kW","savings":number,${dieselExtra}"reasoning":"1-2 sentences","nextStep":"action"}`;
 
       try {
         const qText = await callClaude(apiKey, qPrompt);
@@ -923,18 +954,15 @@ Return ONLY raw JSON. No markdown. Start { end }:
         leads[i] = {...leads[i],state:'done',score:0,tier:'COLD',reasoning:'Error: '+e.message};
       }
       renderLeads(); updateStats();
-      // Load satellite images for any newly qualified HOT/WARM leads
-      loadAllRoofImages();
-      await sleep(300);
+      await sleep(500);
     }
 
-    setProgress(100, '✅ Complete');
+    setProgress(100,'✅ Complete');
     const hot=leads.filter(l=>l.tier==='HOT').length, warm=leads.filter(l=>l.tier==='WARM').length;
-    setStatus(`✅ Done — ${hot} HOT + ${warm} WARM leads from ${leads.length} real Google Maps businesses`);
-    document.getElementById('sectionTitle').textContent=`${leads.length} verified businesses — sourced from Google Maps`;
+    setStatus(`✅ Done — ${hot} HOT + ${warm} WARM across ${leads.length} businesses in ${suburbs.length} suburb(s) × ${industries.length} industry(ies)`);
+    document.getElementById('sectionTitle').textContent=`${leads.length} businesses — ${suburbs.length} suburbs × ${industries.length} industries`;
     document.getElementById('exportRow').style.display='flex';
     document.getElementById('exportNote').textContent=`${leads.filter(l=>l.score!==undefined).length} leads ready to export`;
-    loadAllRoofImages();
     done();
   }
 
@@ -946,7 +974,7 @@ Return ONLY raw JSON. No markdown. Start { end }:
     return leads.filter(l=>l.score!==undefined).map(l=>({
       'Business Name':l.name,'Address':l.address,'Website':l.website||'','Phone':l.phone||'',
       'Google Maps Rating':l.rating||'','Review Count':l.reviews||0,
-      'Industry':getIndustryLabel(),'Tier':tierLabel(),'Suburb':getSuburb(),
+      'Industry':l.industryLabel||'','Tier':tierLabel(),'Suburb':l.suburb||'',
       'Has Solar':l.hasSolar?'Yes':'No','Lead Rating':l.tier||'','Score (0-100)':l.score||0,
       'Roof Size':l.roofSize||'','Solar Capacity':l.capacity||'',
       'Est. Annual Solar Savings ($)':l.savings||0,'Est. Annual Diesel Savings ($)':l.dieselSavings||0,
@@ -966,7 +994,7 @@ Return ONLY raw JSON. No markdown. Start { end }:
   }
 
   function exportXLSX(){
-    const rows=getRows(); if(!rows.length){alert('No leads yet.');return;}
+    const rows=getRows().sort((a,b)=>(b['Score (0-100)']||0)-(a['Score (0-100)']||0)); if(!rows.length){alert('No leads yet.');return;}
     const ws=XLSX.utils.json_to_sheet(rows);
     ws['!cols']=[{wch:32},{wch:44},{wch:30},{wch:18},{wch:14},{wch:12},{wch:20},{wch:18},{wch:18},{wch:10},{wch:12},{wch:13},{wch:14},{wch:15},{wch:22},{wch:22},{wch:14},{wch:50},{wch:40},{wch:16},{wch:14}];
     const wb=XLSX.utils.book_new();
@@ -1072,7 +1100,7 @@ Return ONLY raw JSON. No markdown. Start { end }:
 
   async function runBuyback() {
     const apiKey = document.getElementById('apiKey').value.trim();
-    if (!apiKey.startsWith('sk-ant-')) { setBBError('⚠️ Please enter your Anthropic API key in the Keys panel above.'); return; }
+    if (!apiKey.startsWith('sk-ant-')) { setBBError('⚠️ Please enter your Anthropic API key.'); return; }
 
     setBBError(''); bbLeads=[]; bbStopFlag=false;
     document.getElementById('bb-runBtn').disabled = true;
@@ -1085,124 +1113,108 @@ Return ONLY raw JSON. No markdown. Start { end }:
     const minSize = document.getElementById('bb-minsize').value;
     const targetCount = parseInt(document.getElementById('bb-count').value);
     const minSizeLabel = minSize >= 1000 ? (minSize/1000)+'MW' : minSize+'kW';
+    const seenNames = new Set(); // deduplication
 
     setBBProgress(5, `Searching for ${minSizeLabel}+ solar systems in ${region}...`);
 
-    // Run multiple Claude searches in batches to reach target count
+    // Varied search angles to get diverse results
+    const searchAngles = [
+      `large commercial solar installations ${minSizeLabel} ${region}`,
+      `industrial solar system ${minSizeLabel} ${region} rooftop`,
+      `shopping centre school hospital solar ${minSizeLabel} ${region}`,
+      `council warehouse cold storage solar farm ${minSizeLabel} ${region}`,
+      `CEC approved solar large scale ${minSizeLabel} ${region}`
+    ];
+
     const batchSize = 10;
     const batches = Math.ceil(targetCount / batchSize);
-    let searchRound = 1;
 
     for (let batch = 0; batch < batches && !bbStopFlag; batch++) {
-      setBBProgress(5 + Math.round((batch/batches)*40), `Batch ${batch+1}/${batches} — Searching for large solar systems...`);
+      setBBProgress(5 + Math.round((batch/batches)*38), `Search ${batch+1}/${batches} — finding ${minSizeLabel}+ systems...`);
 
-      const searchPrompt = `You are a solar asset researcher for Agile Energy Australia. Find ${batchSize} real businesses or facilities in ${region} that have EXISTING large-scale solar installations of ${minSize}kW or more.
+      const angle = searchAngles[batch % searchAngles.length];
+      const alreadyFound = bbLeads.slice(0,5).map(l=>l.name).join(', ');
 
-Search the web, CEC approved solar list, news articles, council records, solar farm databases, and business directories.
-
-Focus on: commercial buildings, industrial facilities, shopping centres, schools, hospitals, councils, farms, warehouses, cold storage, aged care groups — any sector.
-
-IMPORTANT: Only include systems that are ${minSize}kW (${minSizeLabel}) or larger. These are EXISTING installed systems — Agile Energy wants to BUY BACK or refinance them.
-
-${batch > 0 ? `This is search round ${batch+1} — find DIFFERENT businesses not already listed.` : ''}
-
-Return ONLY a raw JSON array. No markdown. Start [ end ]:
-[{
-  "name": "Business Name",
-  "address": "Full street address, Suburb, State",
-  "website": "https://... or null",
-  "industry": "sector e.g. Cold Storage",
-  "systemSize": "e.g. 500kW or 1.2MW",
-  "installYear": "e.g. 2019 or null",
-  "annualOutput": "e.g. 650MWh/yr or null"
-}]
-
-Return exactly ${batchSize} real results with verified system sizes of ${minSize}kW+.`;
+      // Short, focused search prompt to stay under token limits
+      const searchPrompt = `Find ${batchSize} real businesses in ${region} Australia with existing solar systems of ${minSize}kW or larger.
+Search: ${angle}
+${alreadyFound ? `Already found (do NOT repeat): ${alreadyFound}` : ''}
+JSON array only. No markdown. Start [ end ]:
+[{"name":"Business","address":"Street, Suburb, State","website":"url or null","industry":"sector","systemSize":"e.g. 500kW","installYear":"year or null","annualOutput":"MWh/yr or null"}]`;
 
       try {
         const text = await callClaude(apiKey, searchPrompt);
         const arr = extractJSON(text, true);
         if (arr?.length) {
-          const newLeads = arr.map(l => ({...l, state:'searching', id: Math.random().toString(36).slice(2)}));
-          bbLeads.push(...newLeads);
+          let added = 0;
+          for (const item of arr) {
+            const key = (item.name||'').toLowerCase().trim();
+            if (!key || seenNames.has(key)) continue; // skip duplicates
+            seenNames.add(key);
+            bbLeads.push({...item, state:'searching', id: Math.random().toString(36).slice(2)});
+            added++;
+          }
           document.getElementById('bb-sectionHead').style.display = 'flex';
-          document.getElementById('bb-sectionTitle').textContent = `${bbLeads.length} large solar systems found`;
+          document.getElementById('bb-sectionTitle').textContent = `${bbLeads.length} solar systems found (deduped)`;
           renderBuyback(); updateBBStats();
         }
       } catch(e) {
+        if (e.message.includes('rate') || e.message.includes('limit')) {
+          setBBStatus('⏳ Rate limit hit — waiting 30s before continuing...');
+          await sleep(30000);
+          batch--; // retry this batch
+          continue;
+        }
         setBBError('Search error: ' + e.message);
       }
-      searchRound++;
+      await sleep(3000); // 3s between search batches to avoid rate limits
     }
 
-    if (!bbLeads.length) { setBBError('⚠️ No results found. Try a different region or lower minimum size.'); bbDone(); return; }
+    if (!bbLeads.length) { setBBError('⚠️ No results found. Try a different region.'); bbDone(); return; }
 
-    // Now qualify each one
-    setBBProgress(45, `Qualifying ${bbLeads.length} buyback opportunities...`);
+    // Qualify each one — shorter prompt to avoid token limits
+    setBBProgress(44, `Qualifying ${bbLeads.length} buyback opportunities...`);
 
     for (let i=0; i<bbLeads.length && !bbStopFlag; i++) {
-      setBBProgress(45 + Math.round((i/bbLeads.length)*53), `Qualifying ${i+1}/${bbLeads.length}: ${bbLeads[i].name}`);
+      setBBProgress(44 + Math.round((i/bbLeads.length)*54), `Qualifying ${i+1}/${bbLeads.length}: ${bbLeads[i].name}`);
 
       const l = bbLeads[i];
-      const qPrompt = `You are a solar asset acquisitions analyst for Agile Energy Australia. Evaluate this business as a SOLAR BUYBACK target — Agile Energy wants to purchase or refinance their existing solar system.
 
-Business: ${l.name}
-Address: ${l.address}
-Website: ${l.website||'unknown'}
+      // Short qualify prompt — key info only
+      const qPrompt = `Rate this as a solar BUYBACK target for Agile Energy Australia.
+Business: ${l.name}, ${l.address}
+Known system: ${l.systemSize||'unknown'}, installed ${l.installYear||'unknown'}
 Sector: ${l.industry||'unknown'}
-Known system size: ${l.systemSize||'unknown'}
-Install year: ${l.installYear||'unknown'}
 
-Search the web for more details. Determine:
-1. Confirm the system exists and approximate size (kW or MW)?
-2. Estimated system age and remaining useful life?
-3. Estimated current market value of the system ($AUD millions)?
-4. How attractive is this as a buyback target? (consider system age, size, owner type, finance situation)
-5. Buyback score 0-100 (100 = perfect: large system, aging finance, motivated owner)?
-6. Best approach for Agile Energy to initiate contact?
-
-Return ONLY raw JSON. No markdown. Start { end }:
-{"bbTier":"HOT|WARM|COLD","score":number,"systemSize":"confirmed size","systemMW":number_in_MW,"installYear":"year or est.","estValue":number_in_millions_AUD,"annualOutput":"MWh/yr","industry":"sector","reasoning":"2-3 sentences on buyback attractiveness","nextStep":"specific contact approach","website":"${l.website||'null'}"}`;
+Quick web search. Return JSON only. No markdown. Start { end }:
+{"bbTier":"HOT|WARM|COLD","score":0-100,"systemSize":"kW/MW","systemMW":decimal,"installYear":"year","estValue":AUD_millions,"annualOutput":"MWh/yr","industry":"sector","reasoning":"1-2 sentences","nextStep":"contact action"}`;
 
       try {
         const qText = await callClaude(apiKey, qPrompt);
         const q = extractJSON(qText, false);
-        if (q) {
-          bbLeads[i] = {...l, ...q, state:'done'};
-          // Fetch website from Maps if we have a place search result
-          if (!bbLeads[i].website && document.getElementById('mapsKey').value.startsWith('AIza')) {
-            try {
-              const mapsKey = document.getElementById('mapsKey').value.trim();
-              const sr = await fetch(`/api/places/search?query=${encodeURIComponent(l.name+' '+l.address)}&key=${mapsKey}`);
-              const sd = await sr.json();
-              if (sd.results?.[0]) {
-                bbLeads[i].place_id = sd.results[0].place_id;
-                bbLeads[i].rating = sd.results[0].rating;
-                bbLeads[i].reviews = sd.results[0].reviews;
-                const dr = await fetch(`/api/places/details?place_id=${sd.results[0].place_id}&key=${mapsKey}`);
-                const dd = await dr.json();
-                if (dd.result?.website) bbLeads[i].website = dd.result.website;
-              }
-            } catch(e) {}
-          }
-        } else {
-          bbLeads[i] = {...l, state:'done', bbTier:'COLD', score:0, reasoning:'Could not qualify.'};
-        }
+        bbLeads[i] = q ? {...l,...q,state:'done'} : {...l,state:'done',bbTier:'COLD',score:0,reasoning:'Could not qualify.'};
       } catch(e) {
-        bbLeads[i] = {...l, state:'done', bbTier:'COLD', score:0, reasoning:'Error: '+e.message};
+        if (e.message.includes('rate') || e.message.includes('limit')) {
+          setBBStatus('⏳ Rate limit — waiting 30s...');
+          await sleep(30000);
+          i--; // retry
+          continue;
+        }
+        bbLeads[i] = {...l,state:'done',bbTier:'COLD',score:0,reasoning:'Error: '+e.message};
       }
 
-      renderBuyback(); updateBBStats(); await sleep(400);
+      renderBuyback(); updateBBStats();
+      await sleep(2000); // 2s between qualifications
     }
 
     setBBProgress(100, '✅ Complete');
-    const hot = bbLeads.filter(l=>l.bbTier==='HOT').length;
-    const warm = bbLeads.filter(l=>l.bbTier==='WARM').length;
-    const totalMW = bbLeads.filter(l=>l.systemMW).reduce((s,l)=>s+(l.systemMW||0),0);
-    setBBStatus(`✅ Done — ${hot} HOT + ${warm} WARM buyback targets found. ${totalMW.toFixed(1)}MW total identified.`);
-    document.getElementById('bb-sectionTitle').textContent = `${bbLeads.length} buyback opportunities`;
-    document.getElementById('bb-exportRow').style.display = 'flex';
-    document.getElementById('bb-exportNote').textContent = `${bbLeads.filter(l=>l.score!==undefined).length} targets ready to export`;
+    const hot=bbLeads.filter(l=>l.bbTier==='HOT').length;
+    const warm=bbLeads.filter(l=>l.bbTier==='WARM').length;
+    const totalMW=bbLeads.reduce((s,l)=>s+(l.systemMW||0),0);
+    setBBStatus(`✅ Done — ${hot} HOT + ${warm} WARM targets. ${totalMW.toFixed(1)}MW total. ${bbLeads.length} unique businesses.`);
+    document.getElementById('bb-sectionTitle').textContent=`${bbLeads.length} buyback opportunities (deduped)`;
+    document.getElementById('bb-exportRow').style.display='flex';
+    document.getElementById('bb-exportNote').textContent=`${bbLeads.filter(l=>l.score!==undefined).length} targets ready to export`;
     bbDone();
   }
 
