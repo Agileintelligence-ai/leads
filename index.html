@@ -258,11 +258,13 @@
           <select id="industryPicker" onchange="addIndustry(this.value,this.options[this.selectedIndex].text); this.value=''">
             <option value="">+ Add an industry...</option>
             <option value="aged care facility">Aged Care</option>
+            <option value="retirement village centre">Retirement Villages & Centres</option>
             <option value="childcare centre">Childcare</option>
             <option value="school">Schools & Education</option>
             <option value="medical clinic">Medical & Dental</option>
             <option value="retail store">Retail</option>
             <option value="warehouse industrial">Industrial & Warehousing</option>
+            <option value="manufacturing factory">Manufacturing</option>
             <option value="restaurant cafe">Hospitality & Restaurants</option>
             <option value="gym fitness centre">Gyms & Fitness</option>
             <option value="church community hall">Churches & Community</option>
@@ -277,15 +279,14 @@
         </div>
 
         <div class="ctrl-group">
-          <label>Facilities per suburb/industry</label>
+          <label>Total facilities to find</label>
           <select id="count" onchange="updateTotalEstimate()">
-            <option value="5">5 per combination</option>
-            <option value="10" selected>10 per combination</option>
-            <option value="15">15 per combination</option>
-            <option value="20">20 per combination</option>
-            <option value="25">25 per combination</option>
+            <option value="10">10 total</option>
+            <option value="25">25 total</option>
+            <option value="50">50 total</option>
+            <option value="100">100 total</option>
           </select>
-          <div style="font-size:10px;color:var(--muted);margin-top:8px;font-family:'DM Mono',monospace" id="totalEstimate">Select suburbs + industries to see total estimate</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:8px;font-family:'DM Mono',monospace" id="totalEstimate">Spread evenly across your suburb + industry selections</div>
         </div>
       </div>
 
@@ -523,13 +524,13 @@
   }
 
   function updateTotalEstimate() {
-    const perCombo = parseInt(document.getElementById('count')?.value||10);
+    const total = parseInt(document.getElementById('count')?.value||25);
     const combos = Math.max(selectedSuburbs.length,1) * Math.max(selectedIndustries.length,1);
-    const total = combos * perCombo;
+    const perCombo = Math.max(1, Math.ceil(total / combos));
     const el = document.getElementById('totalEstimate');
     if (el) el.textContent = selectedSuburbs.length && selectedIndustries.length
-      ? `${selectedSuburbs.length} suburb${selectedSuburbs.length>1?'s':''} × ${selectedIndustries.length} industr${selectedIndustries.length>1?'ies':'y'} × ${perCombo} = ~${total} total leads`
-      : 'Select suburbs + industries to see total estimate';
+      ? `~${perCombo} per combination across ${selectedSuburbs.length} suburb(s) × ${selectedIndustries.length} industry(ies)`
+      : 'Spread evenly across your suburb + industry selections';
   }
 
   function getSuburbs() { return selectedSuburbs.length ? selectedSuburbs.map(s=>s.label) : ['Sydney NSW']; }
@@ -884,15 +885,14 @@
     document.getElementById('sectionHead').style.display='none';
     document.getElementById('exportRow').style.display='none';
 
-    const countPerCombo = parseInt(document.getElementById('count').value);
-    const seenPlaceIds = new Set();
-    const tierDesc = {1:'large chain or corporate operator',2:'small independent owner-operated business',3:'remote/diesel-dependent facility',4:'business (mix of large and small operators)'}[currentTier];
-    const dieselExtra = currentTier===3 ? '"dieselSavings":number,"batterySize":"e.g. 200kWh",' : '';
-
-    // Build all suburb × industry combinations
+    const totalTarget = parseInt(document.getElementById('count').value);
     const combos = [];
     for (const suburb of suburbs) for (const ind of industries) combos.push({suburb, ind});
     const totalCombos = combos.length;
+    const countPerCombo = Math.max(1, Math.ceil(totalTarget / totalCombos));
+    const seenPlaceIds = new Set();
+    const tierDesc = {1:'large chain or corporate operator',2:'small independent owner-operated business',3:'remote/diesel-dependent facility',4:'business (mix of large and small operators)'}[currentTier];
+    const dieselExtra = currentTier===3 ? '"dieselSavings":number,"batterySize":"e.g. 200kWh",' : '';
 
     setProgress(2, `Searching ${totalCombos} suburb×industry combinations...`);
     document.getElementById('sectionHead').style.display='flex';
