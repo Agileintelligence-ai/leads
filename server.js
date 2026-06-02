@@ -44,7 +44,8 @@ function proxyToAnthropic(body, res) {
 // ── Google Places text search ─────────────────────────────────────────────────
 function searchPlaces(query, mapsKey, res) {
   const encoded = encodeURIComponent(query);
-  const mapsPath = `/maps/api/place/textsearch/json?query=${encoded}&key=${mapsKey}`;
+  // Add region bias to Australia and use rankby=prominence for local results
+  const mapsPath = `/maps/api/place/textsearch/json?query=${encoded}&region=au&key=${mapsKey}`;
   https.get(`https://maps.googleapis.com${mapsPath}`, (apiRes) => {
     let result = '';
     apiRes.on('data', chunk => result += chunk);

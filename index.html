@@ -802,13 +802,18 @@
 
   async function fetchRealBusinesses(suburb, industryKey, count, mapsKey) {
     const seenIds = new Set(), allResults = [];
-    const queries = currentTier === 4
-      ? [`${industryKey} in ${suburb} Australia`, `small independent ${industryKey} near ${suburb} Australia`, `local ${industryKey} ${suburb}`]
-      : currentTier === 3
-        ? [`remote ${industryKey} ${suburb} Australia`, `diesel ${industryKey} near ${suburb}`]
-        : currentTier === 2
-          ? [`small independent ${industryKey} in ${suburb} Australia`, `local ${industryKey} near ${suburb}`]
-          : [`${industryKey} in ${suburb} Australia`, `${industryKey} near ${suburb} Australia`];
+
+    const tierModifier = currentTier===2 ? 'small independent ' : currentTier===3 ? 'remote ' : '';
+    const queries = [
+      `${tierModifier}${industryKey} in ${suburb} Australia`,
+      `${tierModifier}${industryKey} near ${suburb} Australia`,
+      `${industryKey} ${suburb} Australia`
+    ];
+
+    // Extract suburb name and state for address validation
+    const parts = suburb.trim().split(' ');
+    const state = parts[parts.length-1].toLowerCase(); // e.g. "nsw"
+    const suburbName = parts.slice(0, parts.length-1).join(' ').toLowerCase(); // e.g. "hornsby"
 
     for (const q of queries) {
       if (allResults.length >= count) break;
@@ -816,8 +821,12 @@
       const data = await resp.json();
       for (const place of (data.results||[])) {
         if (!seenIds.has(place.place_id) && allResults.length < count) {
-          seenIds.add(place.place_id);
-          allResults.push(place);
+          // Filter: address must contain the suburb name OR the state abbreviation
+          const addr = (place.address||'').toLowerCase();
+          if (addr.includes(suburbName) || addr.includes(` ${state} `) || addr.includes(` ${state},`) || addr.endsWith(` ${state}`)) {
+            seenIds.add(place.place_id);
+            allResults.push(place);
+          }
         }
       }
     }
