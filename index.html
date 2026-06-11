@@ -259,6 +259,8 @@
             <option value="">+ Add an industry...</option>
             <option value="aged care facility">Aged Care</option>
             <option value="retirement village centre">Retirement Villages & Centres</option>
+            <option value="food manufacturing processing">Food Manufacturing & Processing</option>
+            <option value="food distribution warehouse">Food Distribution & Warehousing</option>
             <option value="childcare centre">Childcare</option>
             <option value="school">Schools & Education</option>
             <option value="medical clinic">Medical & Dental</option>
@@ -344,9 +346,11 @@
 
     <div class="controls">
       <div class="controls-grid">
+
         <div class="ctrl-group">
-          <label>State / Region</label>
-          <select id="bb-region">
+          <label>Regions <span style="color:var(--accent2);font-size:10px">(pick multiple)</span></label>
+          <select id="bb-regionPicker" onchange="addBBRegion(this.value); this.value=''">
+            <option value="">+ Add a region...</option>
             <optgroup label="Queensland">
               <option value="Southern Queensland">Southern QLD</option>
               <option value="South East Queensland">South East QLD</option>
@@ -386,8 +390,36 @@
               <option value="Tasmania Australia">Tasmania</option>
             </optgroup>
           </select>
-          <input type="text" id="bb-region-custom" placeholder="Or type a specific area..." style="margin-top:7px;">
+          <input type="text" id="bb-regionCustom" placeholder="Or type a specific area + Enter..." style="margin-top:6px;" onkeydown="if(event.key==='Enter'){addBBRegion(this.value);this.value='';}">
+          <div id="bb-regionTags" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;min-height:26px;"></div>
         </div>
+
+        <div class="ctrl-group">
+          <label>Industries <span style="color:var(--accent2);font-size:10px">(pick multiple, or leave empty for all)</span></label>
+          <select id="bb-industryPicker" onchange="addBBIndustry(this.value,this.options[this.selectedIndex].text); this.value=''">
+            <option value="">+ Add an industry...</option>
+            <option value="food manufacturing processing">Food Manufacturing & Processing</option>
+            <option value="food distribution warehouse">Food Distribution & Warehousing</option>
+            <option value="aged care">Aged Care</option>
+            <option value="retirement village">Retirement Villages</option>
+            <option value="childcare">Childcare</option>
+            <option value="school education">Schools & Education</option>
+            <option value="hospital medical">Hospitals & Medical</option>
+            <option value="retail shopping centre">Retail & Shopping Centres</option>
+            <option value="industrial warehouse">Industrial & Warehousing</option>
+            <option value="manufacturing factory">Manufacturing</option>
+            <option value="cold storage logistics">Cold Storage & Logistics</option>
+            <option value="supermarket">Supermarkets</option>
+            <option value="hotel accommodation">Hotels & Accommodation</option>
+            <option value="council government">Councils & Government</option>
+            <option value="farm agriculture">Agriculture & Farming</option>
+            <option value="mining resources">Mining & Resources</option>
+            <option value="caravan park">Caravan Parks</option>
+            <option value="service station">Service Stations</option>
+          </select>
+          <div id="bb-industryTags" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;min-height:26px;"></div>
+        </div>
+
         <div class="ctrl-group">
           <label>Min System Size</label>
           <select id="bb-minsize">
@@ -397,15 +429,15 @@
             <option value="1000">1MW+</option>
             <option value="2000">2MW+</option>
           </select>
-        </div>
-        <div class="ctrl-group">
-          <label>Targets to find</label>
-          <select id="bb-count">
-            <option value="10">10 targets (fast)</option>
-            <option value="25" selected>25 targets</option>
-            <option value="50">50 targets</option>
+          <label style="margin-top:12px;display:block">Targets to find</label>
+          <select id="bb-count" style="margin-top:6px">
+            <option value="10">10 total</option>
+            <option value="25" selected>25 total</option>
+            <option value="50">50 total</option>
+            <option value="100">100 total</option>
           </select>
         </div>
+
       </div>
 
       <button class="run-btn" id="bb-runBtn" onclick="runBuyback()" style="background:linear-gradient(135deg,var(--accent2),#059669);color:#000">
@@ -1039,15 +1071,42 @@ JSON only. No markdown. Start { end }:
   // BUYBACK MODE
   // ═══════════════════════════════════════════════════════════
   let bbLeads = [], bbStopFlag = false;
+  let bbRegions = [], bbIndustries = [];
 
-  function getBBRegion() {
-    return document.getElementById('bb-region-custom').value.trim() || document.getElementById('bb-region').value;
+  function addBBRegion(val) {
+    val = val.trim();
+    if (!val || bbRegions.includes(val)) return;
+    bbRegions.push(val);
+    renderBBRegionTags();
+  }
+  function removeBBRegion(i) { bbRegions.splice(i,1); renderBBRegionTags(); }
+  function renderBBRegionTags() {
+    document.getElementById('bb-regionTags').innerHTML = bbRegions.map((r,i)=>
+      `<span class="tag-chip" style="background:rgba(62,207,142,0.12);border-color:rgba(62,207,142,0.3);color:var(--accent2)">${r}<button onclick="removeBBRegion(${i})">×</button></span>`).join('');
   }
 
+  function addBBIndustry(key, label) {
+    if (!key || bbIndustries.find(x=>x.key===key)) return;
+    bbIndustries.push({key, label});
+    renderBBIndustryTags();
+  }
+  function removeBBIndustry(i) { bbIndustries.splice(i,1); renderBBIndustryTags(); }
+  function renderBBIndustryTags() {
+    document.getElementById('bb-industryTags').innerHTML = bbIndustries.map((x,i)=>
+      `<span class="tag-chip">${x.label}<button onclick="removeBBIndustry(${i})">×</button></span>`).join('');
+  }
+
+  function getBBRegions() { return bbRegions.length ? bbRegions : ['Australia']; }
+  function getBBIndustries() { return bbIndustries.length ? bbIndustries.map(x=>x.key) : null; } // null = all industries
+  function getBBRegion() { return getBBRegions().join(', '); } // legacy single string for prompts
+
   function setBBProgress(pct, label) {
-    document.getElementById('bb-progressWrap').style.display = 'block';
-    document.getElementById('bb-progressFill').style.width = pct + '%';
-    document.getElementById('bb-progressLabel').textContent = label;
+    const wrap = document.getElementById('bb-progressWrap');
+    if (wrap) wrap.style.display = 'block';
+    const fill = document.getElementById('bb-progressFill');
+    const lbl = document.getElementById('bb-progressLabel');
+    if (fill) fill.style.width = pct + '%';
+    if (lbl) lbl.textContent = label;
   }
 
   function setBBStatus(msg) { document.getElementById('bb-statusMsg').textContent = msg; }
@@ -1072,26 +1131,31 @@ JSON only. No markdown. Start { end }:
   }
 
   function renderBBCard(l) {
-    if (l.state === 'searching') return `<div class="bb-card"><div class="bb-name">${esc(l.name||'Searching...')}</div><div class="pulse" style="margin-top:8px;opacity:.5"><div class="dot"></div><div class="dot"></div><div class="dot"></div>Qualifying buyback opportunity...</div></div>`;
+    if (l.state === 'waiting') return `<div class="bb-card"><div class="bb-name">${esc(l.name)}</div><div class="bb-addr">📍 ${esc(l.address||'')}</div>${l.website?`<div class="bb-website">🌐 <a href="${l.website}" target="_blank">${l.website.replace(/^https?:\/\//,'').split('/')[0]}</a></div>`:''}<div class="pulse" style="margin-top:8px;opacity:.4"><div class="dot"></div><div class="dot"></div><div class="dot"></div>Waiting...</div></div>`;
+    if (l.state === 'searching') return `<div class="bb-card"><div class="bb-name">${esc(l.name)}</div><div class="bb-addr">📍 ${esc(l.address||'')}</div>${l.website?`<div class="bb-website">🌐 <a href="${l.website}" target="_blank">${l.website.replace(/^https?:\/\//,'').split('/')[0]}</a></div>`:''}<div class="pulse" style="margin-top:8px"><div class="dot"></div><div class="dot"></div><div class="dot"></div>Checking for solar...</div></div>`;
 
     const tierCls = l.bbTier==='HOT'?'bb-hot':l.bbTier==='WARM'?'bb-warm':'bb-cold';
     const cardCls = l.bbTier==='HOT'?'hot-buy':l.bbTier==='WARM'?'warm-buy':'';
     const websiteHtml = l.website
       ? `<div class="bb-website">🌐 <a href="${l.website}" target="_blank">${l.website.replace(/^https?:\/\//,'').split('/')[0]}</a></div>`
       : `<div class="bb-website" style="color:var(--muted)">No website found</div>`;
+    const solarBadge = l.hasSolar
+      ? `<span class="bb-badge" style="background:rgba(62,207,142,0.15);color:var(--accent2);border:1px solid rgba(62,207,142,0.3)">☀️ Has Solar</span>`
+      : `<span class="bb-badge" style="background:rgba(100,116,139,0.1);color:var(--muted);border:1px solid rgba(100,116,139,0.2)">No Solar Found</span>`;
 
     return `<div class="bb-card ${cardCls}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px">
         <div>
           <div class="bb-name">${esc(l.name)}</div>
-          <div class="bb-addr">📍 ${esc(l.address||l.location||'')}</div>
+          <div class="bb-addr">📍 ${esc(l.address||'')}</div>
           ${websiteHtml}
           ${l.rating ? `<div style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:3px">⭐ ${l.rating} (${l.reviews||0} reviews)</div>` : ''}
         </div>
         <div class="bb-badges">
           <span class="bb-badge ${tierCls}">${l.bbTier}</span>
+          ${solarBadge}
           ${l.systemSize ? `<span class="bb-badge bb-size">⚡ ${l.systemSize}</span>` : ''}
-          <span class="bb-badge" style="background:rgba(62,207,142,0.1);color:var(--accent2);border:1px solid rgba(62,207,142,0.25)">♻️ Buyback</span>
+          <span class="bb-badge" style="background:rgba(62,207,142,0.08);color:var(--accent2);border:1px solid rgba(62,207,142,0.2)">♻️ Buyback</span>
         </div>
       </div>
       <div class="bb-body">${esc(l.reasoning||'')}</div>
@@ -1102,6 +1166,7 @@ JSON only. No markdown. Start { end }:
         ${l.annualOutput ? `<div class="bb-metric"><span>Output: </span>${l.annualOutput}</div>` : ''}
         ${l.score ? `<div class="bb-metric"><span>Score: </span>${l.score}/100</div>` : ''}
         ${l.industry ? `<div class="bb-metric"><span>Sector: </span>${l.industry}</div>` : ''}
+        ${l.region ? `<div class="bb-metric"><span>Region: </span>${l.region}</div>` : ''}
       </div>
       ${l.nextStep ? `<div class="bb-action">→ ${esc(l.nextStep)}</div>` : ''}
     </div>`;
@@ -1109,7 +1174,9 @@ JSON only. No markdown. Start { end }:
 
   async function runBuyback() {
     const apiKey = document.getElementById('apiKey').value.trim();
+    const mapsKey = document.getElementById('mapsKey').value.trim();
     if (!apiKey.startsWith('sk-ant-')) { setBBError('⚠️ Please enter your Anthropic API key.'); return; }
+    if (!mapsKey.startsWith('AIza')) { setBBError('⚠️ Google Maps key is required to find real businesses.'); return; }
 
     setBBError(''); bbLeads=[]; bbStopFlag=false;
     document.getElementById('bb-runBtn').disabled = true;
@@ -1118,112 +1185,140 @@ JSON only. No markdown. Start { end }:
     document.getElementById('bb-exportRow').style.display = 'none';
     document.getElementById('buybackGrid').innerHTML = '';
 
-    const region = getBBRegion();
-    const minSize = document.getElementById('bb-minsize').value;
-    const targetCount = parseInt(document.getElementById('bb-count').value);
+    const regions = getBBRegions();
+    const minSize = parseInt(document.getElementById('bb-minsize').value);
     const minSizeLabel = minSize >= 1000 ? (minSize/1000)+'MW' : minSize+'kW';
-    const seenNames = new Set(); // deduplication
+    const totalTarget = parseInt(document.getElementById('bb-count').value);
+    const seenIds = new Set();
 
-    setBBProgress(5, `Searching for ${minSizeLabel}+ solar systems in ${region}...`);
-
-    // Varied search angles to get diverse results
-    const searchAngles = [
-      `large commercial solar installations ${minSizeLabel} ${region}`,
-      `industrial solar system ${minSizeLabel} ${region} rooftop`,
-      `shopping centre school hospital solar ${minSizeLabel} ${region}`,
-      `council warehouse cold storage solar farm ${minSizeLabel} ${region}`,
-      `CEC approved solar large scale ${minSizeLabel} ${region}`
+    // Use selected industries or default high-energy sectors good for buyback
+    const rawIndustries = getBBIndustries();
+    const searchIndustries = rawIndustries && rawIndustries.length > 0 ? rawIndustries : [
+      'industrial warehouse', 'manufacturing factory', 'cold storage logistics',
+      'shopping centre retail', 'aged care', 'school education',
+      'food manufacturing processing', 'supermarket'
     ];
 
-    const batchSize = 10;
-    const batches = Math.ceil(targetCount / batchSize);
+    // Build combos
+    const combos = [];
+    for (const region of regions) {
+      for (const ind of searchIndustries) {
+        combos.push({region, ind});
+      }
+    }
+    const perCombo = Math.max(3, Math.ceil(totalTarget / combos.length));
 
-    for (let batch = 0; batch < batches && !bbStopFlag; batch++) {
-      setBBProgress(5 + Math.round((batch/batches)*38), `Search ${batch+1}/${batches} — finding ${minSizeLabel}+ systems...`);
+    setBBProgress(5, `Step 1/3 — Searching Google Maps across ${combos.length} combinations...`);
+    document.getElementById('bb-progressWrap').style.display = 'block';
 
-      const angle = searchAngles[batch % searchAngles.length];
-      const alreadyFound = bbLeads.slice(0,5).map(l=>l.name).join(', ');
-
-      // Short, focused search prompt to stay under token limits
-      const searchPrompt = `Find ${batchSize} real businesses in ${region} Australia with existing solar systems of ${minSize}kW or larger.
-Search: ${angle}
-${alreadyFound ? `Already found (do NOT repeat): ${alreadyFound}` : ''}
-JSON array only. No markdown. Start [ end ]:
-[{"name":"Business","address":"Street, Suburb, State","website":"url or null","industry":"sector","systemSize":"e.g. 500kW","installYear":"year or null","annualOutput":"MWh/yr or null"}]`;
+    // Phase 1: Google Maps search for all combos
+    for (let ci=0; ci<combos.length && !bbStopFlag; ci++) {
+      const {region, ind} = combos[ci];
+      setBBProgress(5 + Math.round((ci/combos.length)*35), `Maps: ${ind} in ${region} (${ci+1}/${combos.length})`);
 
       try {
-        const text = await callClaude(apiKey, searchPrompt);
-        const arr = extractJSON(text, true);
-        if (arr?.length) {
-          let added = 0;
-          for (const item of arr) {
-            const key = (item.name||'').toLowerCase().trim();
-            if (!key || seenNames.has(key)) continue; // skip duplicates
-            seenNames.add(key);
-            bbLeads.push({...item, state:'searching', id: Math.random().toString(36).slice(2)});
-            added++;
+        const q = `${ind} in ${region} Australia`;
+        const resp = await fetch(`/api/places/search?query=${encodeURIComponent(q)}&key=${mapsKey}`);
+        const data = await resp.json();
+        for (const place of (data.results||[])) {
+          if (!seenIds.has(place.place_id) && bbLeads.length < totalTarget * 2) {
+            seenIds.add(place.place_id);
+            bbLeads.push({
+              ...place,
+              region,
+              industrySearch: ind,
+              state: 'waiting',
+              id: Math.random().toString(36).slice(2)
+            });
           }
-          document.getElementById('bb-sectionHead').style.display = 'flex';
-          document.getElementById('bb-sectionTitle').textContent = `${bbLeads.length} solar systems found (deduped)`;
-          renderBuyback(); updateBBStats();
         }
-      } catch(e) {
-        if (e.message.includes('rate') || e.message.includes('limit')) {
-          setBBStatus('⏳ Rate limit hit — waiting 30s before continuing...');
-          await sleep(30000);
-          batch--; // retry this batch
-          continue;
-        }
-        setBBError('Search error: ' + e.message);
-      }
-      await sleep(3000); // 3s between search batches to avoid rate limits
+        document.getElementById('bb-sectionHead').style.display = 'flex';
+        document.getElementById('bb-sectionTitle').textContent = `${bbLeads.length} businesses found from Maps...`;
+        renderBuyback(); updateBBStats();
+      } catch(e) { console.error('Maps error:', e.message); }
+      await sleep(200);
     }
 
-    if (!bbLeads.length) { setBBError('⚠️ No results found. Try a different region.'); bbDone(); return; }
+    if (!bbLeads.length) { setBBError('⚠️ No businesses found on Google Maps. Try different regions.'); bbDone(); return; }
 
-    // Qualify each one — shorter prompt to avoid token limits
-    setBBProgress(44, `Qualifying ${bbLeads.length} buyback opportunities...`);
+    // Phase 2: Get website details
+    setBBProgress(40, `Step 2/3 — Getting details for ${bbLeads.length} businesses...`);
+    for (let i=0; i<bbLeads.length && !bbStopFlag; i++) {
+      if (bbLeads[i].place_id) {
+        try {
+          const resp = await fetch(`/api/places/details?place_id=${bbLeads[i].place_id}&key=${mapsKey}`);
+          const data = await resp.json();
+          if (data.result) {
+            bbLeads[i].website = data.result.website || null;
+            bbLeads[i].phone = data.result.formatted_phone_number || null;
+          }
+        } catch(e) {}
+      }
+      setBBProgress(40 + Math.round((i/bbLeads.length)*12), `Details ${i+1}/${bbLeads.length}`);
+      await sleep(100);
+    }
+    renderBuyback(); updateBBStats();
+
+    // Phase 3: Claude qualifies each for existing solar + buyback potential
+    setBBProgress(52, `Step 3/3 — Qualifying ${bbLeads.length} businesses for solar buyback...`);
+    let qualified = 0;
 
     for (let i=0; i<bbLeads.length && !bbStopFlag; i++) {
-      setBBProgress(44 + Math.round((i/bbLeads.length)*54), `Qualifying ${i+1}/${bbLeads.length}: ${bbLeads[i].name}`);
+      bbLeads[i].state = 'searching';
+      renderBuyback();
+      setBBProgress(52 + Math.round((i/bbLeads.length)*46), `Qualifying ${i+1}/${bbLeads.length}: ${bbLeads[i].name}`);
 
       const l = bbLeads[i];
+      const websiteHint = l.website ? `Website: ${l.website}` : '';
 
-      // Short qualify prompt — key info only
-      const qPrompt = `Rate this as a solar BUYBACK target for Agile Energy Australia.
-Business: ${l.name}, ${l.address}
-Known system: ${l.systemSize||'unknown'}, installed ${l.installYear||'unknown'}
-Sector: ${l.industry||'unknown'}
+      const qPrompt = `Solar buyback analyst for Agile Energy Australia. Does this business have an EXISTING large solar system of ${minSize}kW or more that could be bought back or refinanced?
 
-Quick web search. Return JSON only. No markdown. Start { end }:
-{"bbTier":"HOT|WARM|COLD","score":0-100,"systemSize":"kW/MW","systemMW":decimal,"installYear":"year","estValue":AUD_millions,"annualOutput":"MWh/yr","industry":"sector","reasoning":"1-2 sentences","nextStep":"contact action"}`;
+Business: ${l.name}
+Address: ${l.address}
+${websiteHint}
+Sector: ${l.industrySearch||''}
+
+Search the web. Determine:
+1. Do they have existing solar? How large (kW/MW)?
+2. Is it ${minSize}kW or larger?
+3. Install year and estimated remaining finance term?
+4. Buyback attractiveness score 0-100?
+5. Estimated system value ($AUD millions)?
+6. Best contact approach?
+
+If system is under ${minSize}kW or no solar found, set bbTier to "COLD" and score under 20.
+
+JSON only. No markdown. Start { end }:
+{"hasSolar":bool,"systemSize":"kW or MW","systemMW":decimal,"bbTier":"HOT|WARM|COLD","score":0-100,"installYear":"year or null","estValue":AUD_millions_or_null,"annualOutput":"MWh/yr or null","industry":"sector","reasoning":"1-2 sentences","nextStep":"specific action"}`;
 
       try {
         const qText = await callClaude(apiKey, qPrompt);
         const q = extractJSON(qText, false);
-        bbLeads[i] = q ? {...l,...q,state:'done'} : {...l,state:'done',bbTier:'COLD',score:0,reasoning:'Could not qualify.'};
+        if (q) {
+          bbLeads[i] = {...l, ...q, state:'done'};
+          if (q.hasSolar && q.systemMW && (q.systemMW * 1000) >= minSize) qualified++;
+        } else {
+          bbLeads[i] = {...l, state:'done', bbTier:'COLD', score:0, hasSolar:false, reasoning:'Could not qualify.'};
+        }
       } catch(e) {
         if (e.message.includes('rate') || e.message.includes('limit')) {
-          setBBStatus('⏳ Rate limit — waiting 30s...');
-          await sleep(30000);
-          i--; // retry
-          continue;
+          setBBStatus('⏳ Rate limit — waiting 20s...'); await sleep(20000); i--; continue;
         }
-        bbLeads[i] = {...l,state:'done',bbTier:'COLD',score:0,reasoning:'Error: '+e.message};
+        bbLeads[i] = {...l, state:'done', bbTier:'COLD', score:0, reasoning:'Error: '+e.message};
       }
 
       renderBuyback(); updateBBStats();
-      await sleep(2000); // 2s between qualifications
+      await sleep(800);
     }
 
     setBBProgress(100, '✅ Complete');
     const hot=bbLeads.filter(l=>l.bbTier==='HOT').length;
     const warm=bbLeads.filter(l=>l.bbTier==='WARM').length;
     const totalMW=bbLeads.reduce((s,l)=>s+(l.systemMW||0),0);
-    setBBStatus(`✅ Done — ${hot} HOT + ${warm} WARM targets. ${totalMW.toFixed(1)}MW total. ${bbLeads.length} unique businesses.`);
-    document.getElementById('bb-sectionTitle').textContent=`${bbLeads.length} buyback opportunities (deduped)`;
+    setBBStatus(`✅ Done — ${hot} HOT + ${warm} WARM buyback targets from ${bbLeads.length} real Google Maps businesses. ${totalMW.toFixed(1)}MW total.`);
+    document.getElementById('bb-sectionTitle').textContent=`${bbLeads.length} businesses qualified — ${hot+warm} buyback opportunities`;
     document.getElementById('bb-exportRow').style.display='flex';
-    document.getElementById('bb-exportNote').textContent=`${bbLeads.filter(l=>l.score!==undefined).length} targets ready to export`;
+    document.getElementById('bb-exportNote').textContent=`${bbLeads.filter(l=>l.score!==undefined).length} results ready to export`;
     bbDone();
   }
 
@@ -1235,6 +1330,7 @@ Quick web search. Return JSON only. No markdown. Start { end }:
       'Business Name': l.name,
       'Address': l.address||'',
       'Website': l.website||'',
+      'Region': l.region||getBBRegion(),
       'Sector': l.industry||'',
       'System Size': l.systemSize||'',
       'System MW': l.systemMW||'',
@@ -1245,7 +1341,6 @@ Quick web search. Return JSON only. No markdown. Start { end }:
       'Score (0-100)': l.score||0,
       'Analysis': l.reasoning||'',
       'Recommended Approach': l.nextStep||'',
-      'Region': getBBRegion(),
       'Min Size Filter': document.getElementById('bb-minsize').value+'kW',
       'Date Run': new Date().toLocaleDateString('en-AU')
     }));
