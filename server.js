@@ -42,10 +42,11 @@ function proxyToAnthropic(body, res) {
 }
 
 // ── Google Places text search ─────────────────────────────────────────────────
-function searchPlaces(query, mapsKey, res) {
+function searchPlaces(query, mapsKey, lat, lng, res) {
   const encoded = encodeURIComponent(query);
-  // Add region bias to Australia and use rankby=prominence for local results
-  const mapsPath = `/maps/api/place/textsearch/json?query=${encoded}&region=au&key=${mapsKey}`;
+  // Use location bias if coordinates provided (15km radius around suburb centre)
+  const locationBias = lat && lng ? `&location=${lat},${lng}&radius=15000` : '';
+  const mapsPath = `/maps/api/place/textsearch/json?query=${encoded}&region=au${locationBias}&key=${mapsKey}`;
   https.get(`https://maps.googleapis.com${mapsPath}`, (apiRes) => {
     let result = '';
     apiRes.on('data', chunk => result += chunk);
@@ -162,9 +163,9 @@ const server = http.createServer((req, res) => {
 
   // Places search
   if (req.method === 'GET' && parsed.pathname === '/api/places/search') {
-    const { query, key } = parsed.query;
+    const { query, key, lat, lng } = parsed.query;
     if (!query || !key) { res.writeHead(400, corsHeaders()); res.end(JSON.stringify({ error: 'Missing params' })); return; }
-    searchPlaces(query, key, res);
+    searchPlaces(query, key, lat, lng, res);
     return;
   }
 

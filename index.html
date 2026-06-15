@@ -835,19 +835,40 @@
   async function fetchRealBusinesses(suburb, industryKey, count, mapsKey) {
     const seenIds = new Set(), allResults = [];
 
+    // Step 1: Geocode the suburb to get precise coordinates for location bias
+    let lat = null, lng = null;
+    try {
+      const geoResp = await fetch(`/api/geocode?address=${encodeURIComponent(suburb + ' Australia')}&key=${mapsKey}`);
+      const geoData = await geoResp.json();
+      if (geoData.status === 'OK' && geoData.results?.length > 0) {
+        lat = geoData.results[0].geometry.location.lat;
+        lng = geoData.results[0].geometry.location.lng;
+      }
+    } catch(e) { console.error('Geocode error:', e.message); }
+
     const tierModifier = currentTier===2 ? 'small independent ' : currentTier===3 ? 'remote ' : '';
     const queries = [
       `${tierModifier}${industryKey} in ${suburb} Australia`,
-      `${tierModifier}${industryKey} near ${suburb} Australia`,
+      `${tierModifier}${industryKey} near ${suburb}`,
       `${industryKey} ${suburb} Australia`
     ];
 
+    // Step 2: Search with location bias if we have coordinates
     for (const q of queries) {
       if (allResults.length >= count) break;
-      const resp = await fetch(`${BASE}/api/places/search?query=${encodeURIComponent(q)}&key=${mapsKey}`);
+      let searchUrl = `${BASE}/api/places/search?query=${encodeURIComponent(q)}&key=${mapsKey}`;
+      if (lat && lng) searchUrl += `&lat=${lat}&lng=${lng}`;
+      const resp = await fetch(searchUrl);
       const data = await resp.json();
       for (const place of (data.results||[])) {
         if (!seenIds.has(place.place_id) && allResults.length < count) {
+          // Filter: must be within ~15km of the suburb centre
+          if (lat && lng && place.geometry?.location) {
+            const plat = place.geometry.location.lat;
+            const plng = place.geometry.location.lng;
+            const dist = Math.sqrt(Math.pow((plat-lat)*110, 2) + Math.pow((plng-lng)*90, 2));
+            if (dist > 15) continue; // skip if more than ~15km away
+          }
           seenIds.add(place.place_id);
           allResults.push(place);
         }
