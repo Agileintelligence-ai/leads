@@ -185,7 +185,7 @@
     <div class="logo">⚡</div>
     <div>
       <div class="header-title">Agile Energy — Lead Engine</div>
-      <div class="header-sub">Solar prospects & buyback opportunities</div>
+      <div class="header-sub">Solar prospects & buyback opportunities — v2.5</div>
     </div>
   </div>
   <div class="header-tag">Agile Energy Internal Tool</div>
@@ -842,23 +842,14 @@
       `${industryKey} ${suburb} Australia`
     ];
 
-    // Extract suburb name and state for address validation
-    const parts = suburb.trim().split(' ');
-    const state = parts[parts.length-1].toLowerCase(); // e.g. "nsw"
-    const suburbName = parts.slice(0, parts.length-1).join(' ').toLowerCase(); // e.g. "hornsby"
-
     for (const q of queries) {
       if (allResults.length >= count) break;
       const resp = await fetch(`${BASE}/api/places/search?query=${encodeURIComponent(q)}&key=${mapsKey}`);
       const data = await resp.json();
       for (const place of (data.results||[])) {
         if (!seenIds.has(place.place_id) && allResults.length < count) {
-          // Filter: address must contain the suburb name OR the state abbreviation
-          const addr = (place.address||'').toLowerCase();
-          if (addr.includes(suburbName) || addr.includes(` ${state} `) || addr.includes(` ${state},`) || addr.endsWith(` ${state}`)) {
-            seenIds.add(place.place_id);
-            allResults.push(place);
-          }
+          seenIds.add(place.place_id);
+          allResults.push(place);
         }
       }
     }
@@ -1113,21 +1104,33 @@ JSON only. No markdown. Start { end }:
   function setBBError(msg) { document.getElementById('bb-errorMsg').textContent = msg; }
 
   function updateBBStats() {
-    const q = bbLeads.filter(l => l.score !== undefined);
+    const done = bbLeads.filter(l => l.state === 'done');
+    const withSolar = done.filter(l => l.hasSolar === true);
     document.getElementById('bb-sTotal').textContent = bbLeads.length;
-    document.getElementById('bb-sHot').textContent = q.filter(l => l.bbTier === 'HOT').length;
-    document.getElementById('bb-sWarm').textContent = q.filter(l => l.bbTier === 'WARM').length;
-    document.getElementById('bb-sWebsites').textContent = bbLeads.filter(l => l.website).length;
-    const totalMW = q.reduce((s,l) => s + (l.systemMW||0), 0);
+    document.getElementById('bb-sHot').textContent = withSolar.filter(l => l.bbTier === 'HOT').length;
+    document.getElementById('bb-sWarm').textContent = withSolar.filter(l => l.bbTier === 'WARM').length;
+    document.getElementById('bb-sWebsites').textContent = withSolar.filter(l => l.website).length;
+    const totalMW = withSolar.reduce((s,l) => s + (l.systemMW||0), 0);
     document.getElementById('bb-sSize').textContent = totalMW > 0 ? totalMW.toFixed(1)+'MW' : '0MW';
-    const totalVal = q.reduce((s,l) => s + (l.estValue||0), 0);
+    const totalVal = withSolar.reduce((s,l) => s + (l.estValue||0), 0);
     document.getElementById('bb-sValue').textContent = totalVal > 0 ? '$'+totalVal.toFixed(1)+'M' : '$0M';
   }
 
   function renderBuyback() {
     const grid = document.getElementById('buybackGrid');
     if (!bbLeads.length) return;
-    grid.innerHTML = bbLeads.map(renderBBCard).join('');
+    // Show all while qualifying (waiting/searching states), but once done only show hasSolar=true
+    const toShow = bbLeads.filter(l => 
+      l.state !== 'done' || 
+      l.hasSolar === true || 
+      l.bbTier === 'HOT' || 
+      l.bbTier === 'WARM'
+    );
+    if (toShow.length === 0 && bbLeads.some(l => l.state === 'done')) {
+      grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="icon">🔍</div><h3>No confirmed solar systems found yet</h3><p>Try different regions or industries — the search checks each business for existing solar installations of ${document.getElementById('bb-minsize')?.value||400}kW+.</p></div>`;
+      return;
+    }
+    grid.innerHTML = toShow.map(renderBBCard).join('');
   }
 
   function renderBBCard(l) {
@@ -1271,25 +1274,27 @@ JSON only. No markdown. Start { end }:
       const l = bbLeads[i];
       const websiteHint = l.website ? `Website: ${l.website}` : '';
 
-      const qPrompt = `Solar buyback analyst for Agile Energy Australia. Does this business have an EXISTING large solar system of ${minSize}kW or more that could be bought back or refinanced?
+      const qPrompt = `Solar buyback analyst for Agile Energy Australia.
+
+Does this business likely have an existing solar system of ${minSize}kW or more?
 
 Business: ${l.name}
 Address: ${l.address}
 ${websiteHint}
 Sector: ${l.industrySearch||''}
 
-Search the web. Determine:
-1. Do they have existing solar? How large (kW/MW)?
-2. Is it ${minSize}kW or larger?
-3. Install year and estimated remaining finance term?
-4. Buyback attractiveness score 0-100?
-5. Estimated system value ($AUD millions)?
-6. Best contact approach?
+Search the web. Check website, news, CEC registry, sustainability reports, Google Maps.
 
-If system is under ${minSize}kW or no solar found, set bbTier to "COLD" and score under 20.
+SCORING RULES:
+- HOT: Confirmed solar system ${minSize}kW+ with evidence (installer records, news, CEC data)
+- WARM: Strong indicators of large solar (sustainability reports, energy awards, solar mentioned but size unclear) OR confirmed system close to ${minSize}kW
+- COLD: No evidence of solar, or confirmed system well under ${minSize}kW, or very small business
+
+Set hasSolar=true if there is ANY evidence of solar (even if size unconfirmed).
+Set systemMW to best estimate — use null only if completely unknown.
 
 JSON only. No markdown. Start { end }:
-{"hasSolar":bool,"systemSize":"kW or MW","systemMW":decimal,"bbTier":"HOT|WARM|COLD","score":0-100,"installYear":"year or null","estValue":AUD_millions_or_null,"annualOutput":"MWh/yr or null","industry":"sector","reasoning":"1-2 sentences","nextStep":"specific action"}`;
+{"hasSolar":bool,"systemSize":"kW or MW or estimated","systemMW":decimal_or_null,"bbTier":"HOT|WARM|COLD","score":0-100,"installYear":"year or null","estValue":AUD_millions_or_null,"annualOutput":"MWh/yr or null","industry":"sector","reasoning":"1-2 sentences","nextStep":"specific action"}`;
 
       try {
         const qText = await callClaude(apiKey, qPrompt);
@@ -1312,13 +1317,14 @@ JSON only. No markdown. Start { end }:
     }
 
     setBBProgress(100, '✅ Complete');
-    const hot=bbLeads.filter(l=>l.bbTier==='HOT').length;
-    const warm=bbLeads.filter(l=>l.bbTier==='WARM').length;
-    const totalMW=bbLeads.reduce((s,l)=>s+(l.systemMW||0),0);
-    setBBStatus(`✅ Done — ${hot} HOT + ${warm} WARM buyback targets from ${bbLeads.length} real Google Maps businesses. ${totalMW.toFixed(1)}MW total.`);
-    document.getElementById('bb-sectionTitle').textContent=`${bbLeads.length} businesses qualified — ${hot+warm} buyback opportunities`;
+    const confirmed = bbLeads.filter(l=>l.hasSolar===true);
+    const hot = confirmed.filter(l=>l.bbTier==='HOT').length;
+    const warm = confirmed.filter(l=>l.bbTier==='WARM').length;
+    const totalMW = confirmed.reduce((s,l)=>s+(l.systemMW||0),0);
+    setBBStatus(`✅ Done — searched ${bbLeads.length} businesses, found ${confirmed.length} with confirmed solar ${minSizeLabel}+. ${hot} HOT + ${warm} WARM buyback targets.`);
+    document.getElementById('bb-sectionTitle').textContent=`${confirmed.length} confirmed solar systems — ${hot+warm} buyback opportunities`;
     document.getElementById('bb-exportRow').style.display='flex';
-    document.getElementById('bb-exportNote').textContent=`${bbLeads.filter(l=>l.score!==undefined).length} results ready to export`;
+    document.getElementById('bb-exportNote').textContent=`${confirmed.length} confirmed solar leads ready to export`;
     bbDone();
   }
 
@@ -1326,7 +1332,7 @@ JSON only. No markdown. Start { end }:
   function bbDone() { document.getElementById('bb-runBtn').disabled=false; document.getElementById('bb-stopBtn').style.display='none'; }
 
   function getBBRows() {
-    return bbLeads.filter(l=>l.bbTier).map(l=>({
+    return bbLeads.filter(l=>l.hasSolar===true && l.bbTier && l.bbTier!=='COLD').map(l=>({
       'Business Name': l.name,
       'Address': l.address||'',
       'Website': l.website||'',
