@@ -956,7 +956,7 @@
       setProgress(2 + Math.round((ci/totalCombos)*35), `Finding ${ind.label} in ${suburb}... (${ci+1}/${totalCombos})`);
 
       try {
-        const places = await fetchRealBusinesses(suburb.label, ind.key, countPerCombo, mapsKey);
+        const places = await fetchRealBusinesses(suburb, ind.key, countPerCombo, mapsKey);
         for (const p of places) {
           if (!seenPlaceIds.has(p.place_id)) {
             seenPlaceIds.add(p.place_id);
