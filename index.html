@@ -1140,6 +1140,7 @@ JSON only. No markdown. Start { end }:
   function renderBuyback() {
     const grid = document.getElementById('buybackGrid');
     if (!bbLeads.length) return;
+    const minSize = parseInt(document.getElementById('bb-minsize').value);
     // Show all while qualifying (waiting/searching states), but once done only show hasSolar=true
     const toShow = bbLeads.filter(l =>
       l.state !== 'done' ||
