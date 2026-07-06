@@ -1141,11 +1141,9 @@ JSON only. No markdown. Start { end }:
     const grid = document.getElementById('buybackGrid');
     if (!bbLeads.length) return;
     // Show all while qualifying (waiting/searching states), but once done only show hasSolar=true
-    const toShow = bbLeads.filter(l => 
-      l.state !== 'done' || 
-      l.hasSolar === true || 
-      l.bbTier === 'HOT' || 
-      l.bbTier === 'WARM'
+    const toShow = bbLeads.filter(l =>
+      l.state !== 'done' ||
+      (l.hasSolar === true && (l.systemMW == null || l.systemMW * 1000 >= minSize))
     );
     if (toShow.length === 0 && bbLeads.some(l => l.state === 'done')) {
       grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="icon">🔍</div><h3>No confirmed solar systems found yet</h3><p>Try different regions or industries — the search checks each business for existing solar installations of ${document.getElementById('bb-minsize')?.value||400}kW+.</p></div>`;
